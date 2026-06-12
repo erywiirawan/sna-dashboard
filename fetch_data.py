@@ -1,336 +1,307 @@
-import csv, io, json, os
-from collections import Counter, defaultdict
-from datetime import datetime
+#!/usr/bin/env python3
+"""Fetch & process all SNA data sources into dashboard JSON."""
+import csv, json, os
+from collections import defaultdict
 
-MASTER_ITEMS = '/root/master_list_items.csv'
-MASTER_SUPPLIERS = '/root/master_supplier_list.csv'
-SALES_2025 = '/tmp/sheet_a.csv'
-SALES_2026 = '/tmp/sheet_b.csv'
+def parse_num(s):
+    """US format: commas = thousands, dot = decimal. For sales/stock data."""
+    if not s or not s.strip(): return 0
+    s = s.strip().replace(' ','').replace('"','').replace(',','')
+    try: return float(s)
+    except: return 0
 
-# Load Master Items
-master_items = {}
-with open(MASTER_ITEMS, 'r') as f:
-    reader = csv.DictReader(f)
-    for row in reader:
-        kode = (row.get('Kode') or '').strip()
-        if kode:
-            master_items[kode] = {
-                'nama': (row.get('Nama Barang') or '').strip(),
-                'satuan': (row.get('Satuan') or '').strip().upper(),
-                'group': (row.get('Group') or '').strip(),
-                'class': (row.get('Class') or '').strip(),
-                'type': (row.get('Type') or '').strip(),
-                'supplier': (row.get('SUPPLIER') or '').strip(),
-            }
-print(f"Master Items loaded: {len(master_items)}")
+def parse_num_id(s):
+    """Indonesian format: dots = thousands, comma = decimal. For procurement data."""
+    if not s or not s.strip(): return 0
+    s = s.strip().replace(' ','').replace('"','').replace('.','').replace(',','.')
+    try: return float(s)
+    except: return 0
 
-GRUP_NAMES = {
-    '01TRP': 'Triplek', '02GRC': 'GRC Board', '03PKU': 'Paku',
-    '04KB': 'Kawat Bendrat', '05SGG': 'Seng Gelombang', '05TLG': 'Talang Galvalum',
-    '06HL': 'Hollow', '08TRMK': 'Triplek MRK/PLY', '08SPDK': 'Spandek',
-    '10PMP': 'Pipa PVC', '10PGLW': 'Pipa Galvanis', '14WRM': 'Wiremesh',
-    '15BJR': 'Baja Ringan', '16BL': 'Batu Alam/Bata', '19LMR': 'Lemari/Meja Rak',
-    '19LMF': 'Lem Fox', '19LEM': 'Lem', '20DJ': 'Djabesmen/Seng DJ',
-    '21KR': 'Karpet/Tikar', '22KS': 'Kusen/Alumunium', '28GPSM': 'Gypsum',
-    '30KBL': 'Kabel', '33IDSR': 'Eco Board', '34HMWR': 'Hardware',
-    '35ASPL': 'Aspal',
-}
-
-def parse_sales(filepath):
-    rows = []
-    with open(filepath, 'r') as f:
-        reader = csv.reader(f)
-        header = None
-        for row in reader:
-            if not header:
-                if row and row[0] == 'No':
-                    header = row
-                continue
-            if len(row) < 14:
-                continue
-            
-            cabang = row[1].strip()
-            tanggal = row[2].strip()
-            kode_pel = row[3].strip()
-            pelanggan = row[4].strip().replace('"', '')
-            nomor = row[5].strip()
-            grup_item = row[6].strip()
-            item = row[7].strip()
-            
-            def pf(s):
-                try: return float(s.replace(',','').replace('"','').strip())
-                except: return 0
-            
-            qty = pf(row[8])
-            harga = pf(row[9])
-            diskon = pf(row[10])
-            jumlah = pf(row[11])
-            total = pf(row[12])
-            
-            status = row[13].strip() if len(row) > 13 else ''
-            sales_code = row[14].strip() if len(row) > 14 else ''
-            sf_user = row[15].strip() if len(row) > 15 else ''
-            area = row[16].strip() if len(row) > 16 else ''
-            lob = row[17].strip() if len(row) > 17 else ''
-            delivery = row[19].strip() if len(row) > 19 else ''
-            keterangan = row[20].strip() if len(row) > 20 else ''
-            to_p = row[23].strip() if len(row) > 23 else ''
-            
-            try:
-                dt = datetime.strptime(tanggal, '%d-%b-%y')
-                bulan = dt.strftime('%b')
-                tahun = dt.year
-            except:
-                bulan = ''
-                tahun = 0
-            
-            grup_nama = GRUP_NAMES.get(grup_item, grup_item)
-            master = master_items.get(item, {})
-            supplier = master.get('supplier', '')
-            
-            rows.append({
-                'tahun': tahun, 'bulan': bulan, 'tanggal': tanggal,
-                'cabang': cabang, 'kode_pelanggan': kode_pel,
-                'pelanggan': pelanggan, 'nomor_invoice': nomor,
-                'grup_item': grup_item, 'grup_nama': grup_nama,
-                'item': item, 'keterangan': keterangan,
-                'qty': qty, 'harga': harga, 'diskon': diskon,
-                'jumlah': jumlah, 'total_invoice': total,
-                'status': status, 'sales': sales_code, 'sf_user': sf_user,
-                'area': area, 'lob': lob, 'delivery': delivery,
-                'to_p': to_p, 'supplier': supplier,
-            })
-    return rows
-
-print("\nLoading Sheet A (2025)...")
-sales_2025 = parse_sales(SALES_2025)
-print(f"  Parsed: {len(sales_2025):,} rows")
-
-print("Loading Sheet B (2026)...")
-sales_2026 = parse_sales(SALES_2026)
-print(f"  Parsed: {len(sales_2026):,} rows")
-
-all_sales = sales_2025 + sales_2026
-print(f"\nTotal combined: {len(all_sales):,} rows")
-
-# Save cleaned CSV
-clean_path = '/root/sna_sales_clean.csv'
-fields = ['tahun','bulan','tanggal','cabang','kode_pelanggan','pelanggan',
-          'nomor_invoice','grup_item','grup_nama','item','keterangan',
-          'qty','harga','diskon','jumlah','total_invoice','status',
-          'sales','sf_user','area','lob','delivery','to_p','supplier']
-
-with open(clean_path, 'w', newline='') as f:
-    writer = csv.DictWriter(f, fieldnames=fields)
-    writer.writeheader()
-    writer.writerows(all_sales)
-print(f"\nCleaned CSV saved: {clean_path}")
+def load_csv(path):
+    with open(path, 'r', encoding='utf-8', errors='replace') as f:
+        return list(csv.reader(f))
 
 # ============================================================
-# ANALYSIS
+# 1. MASTER DATA
 # ============================================================
+print("Loading master data...")
+items_raw = load_csv('/root/master_list_items.csv')
+item_map = {}
+for row in items_raw[1:]:
+    if len(row) >= 5:
+        item_map[row[0].strip()] = {'nama':row[1].strip(),'group':row[3].strip()}
 
-print("\n" + "="*70)
-print("DEEP ANALYSIS - PT SAKA NIAGASUKSE ABADI (SNA)")
-print("="*70)
+suppliers_raw = load_csv('/root/master_supplier_list.csv')
+supplier_map = {}
+for row in suppliers_raw[1:]:
+    if len(row) >= 2:
+        supplier_map[row[1].strip()] = row[0].strip()
 
-total_revenue = sum(r['jumlah'] for r in all_sales)
-total_lines = len(all_sales)
-unique_customers = len(set(r['kode_pelanggan'] for r in all_sales if r['kode_pelanggan']))
-unique_items = len(set(r['item'] for r in all_sales))
-unique_invoices = len(set(r['nomor_invoice'] for r in all_sales))
-unique_branches = len(set(r['cabang'] for r in all_sales))
+print(f"  Items: {len(item_map)}, Suppliers: {len(supplier_map)}")
 
-print(f"\nOVERALL STATS (2025 + 2026 YTD)")
-print(f"  Total Revenue: Rp {total_revenue:,.0f}")
-print(f"  Total Line Items: {total_lines:,}")
-print(f"  Total Invoices: {unique_invoices:,}")
-print(f"  Unique Customers: {unique_customers:,}")
-print(f"  Unique SKUs: {unique_items:,}")
-print(f"  Active Branches: {unique_branches}")
+# ============================================================
+# 2. SALES DATA (header in row 1, data from row 2)
+# ============================================================
+print("Loading sales data...")
+month_name_to_code = {'Jan':'Jan','Feb':'Feb','Mar':'Mar','Apr':'Apr','Mei':'May','May':'May',
+                       'Jun':'Jun','Jul':'Jul','Agt':'Aug','Aug':'Aug','Sep':'Sep',
+                       'Okt':'Oct','Oct':'Oct','Nov':'Nov','Des':'Dec','Dec':'Dec'}
 
-# Year comparison
-rev_2025 = sum(r['jumlah'] for r in sales_2025)
-rev_2026 = sum(r['jumlah'] for r in sales_2026)
-lines_2025 = len(sales_2025)
-lines_2026 = len(sales_2026)
-inv_2025 = len(set(r['nomor_invoice'] for r in sales_2025))
-inv_2026 = len(set(r['nomor_invoice'] for r in sales_2026))
+sales = []
+for fname, year in [('/tmp/sheet_a.csv', 2025), ('/tmp/sheet_b.csv', 2026)]:
+    rows = load_csv(fname)
+    header = [h.strip() for h in rows[1]]
+    # Build index map
+    idx = {h: i for i, h in enumerate(header)}
+    for row in rows[2:]:
+        if len(row) < 12: continue
+        # Parse bulan from Tanggal col [2]: "1-Jan-25"
+        tanggal = row[2].strip() if len(row) > 2 else ''
+        bulan = ''
+        if tanggal:
+            parts = tanggal.split('-')
+            if len(parts) >= 2:
+                bulan = month_name_to_code.get(parts[1], parts[1])
+        # Fallback: col 41 (Bulan) for 2025
+        if not bulan and len(row) > 41:
+            bulan = month_name_to_code.get(row[41].strip(), '')
+        if not bulan: continue
 
-months_2026 = sorted(set((r['bulan'], r['tahun']) for r in sales_2026 if r['tahun']==2026))
-n_months_2026 = max(len(months_2026), 1)
-rev_2026_ann = rev_2026 / n_months_2026 * 12
+        sales.append({
+            'tahun': year,
+            'bulan': bulan,
+            'cabang': row[1].strip(),
+            'kode_pelanggan': row[3].strip(),
+            'pelanggan': row[4].strip(),
+            'grup_item': row[6].strip(),
+            'item': row[7].strip(),
+            'keterangan': row[20].strip() if len(row) > 20 else '',
+            'qty': parse_num(row[8]),
+            'harga': parse_num(row[9]),
+            'diskon': parse_num(row[10]),
+            'jumlah': parse_num(row[11]),
+            'lob': row[17].strip() if len(row) > 17 else '',
+            'delivery': row[19].strip() if len(row) > 19 else '',
+        })
 
-print(f"\n2026 Data Months: {n_months_2026}")
+print(f"  Sales rows: {len(sales)}")
 
-print(f"\nYoY COMPARISON")
-print(f"  Revenue 2025: Rp {rev_2025:,.0f}")
-print(f"  Revenue 2026 YTD ({n_months_2026}mo): Rp {rev_2026:,.0f}")
-print(f"  Revenue 2026 Annualized: Rp {rev_2026_ann:,.0f}")
-print(f"  Growth: {((rev_2026_ann/rev_2025)-1)*100:+.1f}%")
-
-# Monthly trend 2025
+# Sales aggregation
 month_order = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-monthly_2025 = defaultdict(float)
-for r in sales_2025:
-    if r['tahun'] == 2025:
-        monthly_2025[r['bulan']] += r['jumlah']
-
-print(f"\nMONTHLY REVENUE 2025:")
-for m in month_order:
-    val = monthly_2025.get(m, 0)
-    bar = '#' * max(1, int(val / 2_000_000_000))
-    print(f"  {m}: Rp {val/1e9:>7.1f}M {bar}")
-
-monthly_2026 = defaultdict(float)
-for r in sales_2026:
-    if r['tahun'] == 2026:
-        monthly_2026[r['bulan']] += r['jumlah']
-
-print(f"\nMONTHLY REVENUE 2026:")
-for m in month_order:
-    val = monthly_2026.get(m, 0)
-    if val > 0:
-        bar = '#' * max(1, int(val / 2_000_000_000))
-        print(f"  {m}: Rp {val/1e9:>7.1f}M {bar}")
-
-# Branch performance
-branch_rev_2025 = defaultdict(float)
-branch_lines_2025 = defaultdict(int)
-for r in sales_2025:
-    branch_rev_2025[r['cabang']] += r['jumlah']
-    branch_lines_2025[r['cabang']] += 1
-
-branch_rev_2026 = defaultdict(float)
-branch_lines_2026 = defaultdict(int)
-for r in sales_2026:
-    branch_rev_2026[r['cabang']] += r['jumlah']
-    branch_lines_2026[r['cabang']] += 1
-
-print(f"\nBRANCH PERFORMANCE:")
-for cabang in sorted(branch_rev_2025.keys(), key=lambda x: branch_rev_2025[x], reverse=True):
-    r25 = branch_rev_2025[cabang]
-    r26 = branch_rev_2026.get(cabang, 0)
-    l25 = branch_lines_2025[cabang]
-    l26 = branch_lines_2026.get(cabang, 0)
-    ann = r26 / n_months_2026 * 12 if n_months_2026 else 0
-    growth = ((ann/r25)-1)*100 if r25 > 0 else 0
-    share = r25/rev_2025*100
-    print(f"  {cabang:<8} 25: Rp {r25/1e9:>7.1f}M ({share:>4.1f}%) | 26YTD: Rp {r26/1e9:>7.1f}M | Growth: {growth:>+6.1f}%")
-
-# Product group
-grup_rev = defaultdict(float)
-grup_qty = defaultdict(float)
-grup_lines = defaultdict(int)
-for r in all_sales:
-    g = r['grup_item']
-    grup_rev[g] += r['jumlah']
-    grup_qty[g] += r['qty']
-    grup_lines[g] += 1
-
-print(f"\nPRODUCT GROUP PERFORMANCE:")
-for g in sorted(grup_rev.keys(), key=lambda x: grup_rev[x], reverse=True):
-    name = GRUP_NAMES.get(g, g)[:18]
-    pct = grup_rev[g]/total_revenue*100
-    avg_price = grup_rev[g]/grup_qty[g] if grup_qty[g] else 0
-    print(f"  {g:<10} {name:<18} Rp {grup_rev[g]/1e9:>8.1f}M ({pct:>4.1f}%) Qty:{grup_qty[g]:>10,.0f} Avg:Rp {avg_price:,.0f}")
-
-# Top items
+monthly_rev = {'2025': defaultdict(float), '2026': defaultdict(float)}
+branch_rev = defaultdict(lambda: {'rev25':0,'rev26':0,'qty25':0,'qty26':0})
 item_rev = defaultdict(float)
 item_qty = defaultdict(float)
 item_name = {}
-for r in all_sales:
-    item_rev[r['item']] += r['jumlah']
-    item_qty[r['item']] += r['qty']
-    if r['keterangan']:
-        item_name[r['item']] = r['keterangan']
-
-print(f"\nTOP 20 ITEMS BY REVENUE:")
-for item in sorted(item_rev.keys(), key=lambda x: item_rev[x], reverse=True)[:20]:
-    name = item_name.get(item, '')[:40]
-    pct = item_rev[item]/total_revenue*100
-    print(f"  {item:<25} {name:<40} Rp {item_rev[item]/1e9:>7.2f}M ({pct:>3.1f}%) Qty:{item_qty[item]:>8,.0f}")
-
-# Top customers + Pareto
+grup_rev = defaultdict(float)
 cust_rev = defaultdict(float)
 cust_name = {}
-cust_cabang = {}
-for r in all_sales:
-    k = r['kode_pelanggan']
-    if k:
-        cust_rev[k] += r['jumlah']
-        cust_name[k] = r['pelanggan']
-        cust_cabang[k] = r['cabang']
-
-sorted_custs = sorted(cust_rev.keys(), key=lambda x: cust_rev[x], reverse=True)
-total_cust_rev = sum(cust_rev.values())
-cumulative = 0
-pareto_80 = None
-pareto_50 = None
-
-print(f"\nTOP 20 CUSTOMERS BY REVENUE:")
-for i, k in enumerate(sorted_custs[:20]):
-    cumulative += cust_rev[k]
-    cum_pct = cumulative / total_cust_rev * 100
-    name = cust_name.get(k, '')[:28]
-    cab = cust_cabang.get(k, '')
-    print(f"  {k:<16} {name:<28} {cab:<5} Rp {cust_rev[k]/1e9:>7.2f}M Cum:{cum_pct:>5.1f}%")
-
-cumulative = 0
-for i, k in enumerate(sorted_custs):
-    cumulative += cust_rev[k]
-    if not pareto_50 and cumulative >= total_cust_rev * 0.5:
-        pareto_50 = i + 1
-    if not pareto_80 and cumulative >= total_cust_rev * 0.8:
-        pareto_80 = i + 1
-        break
-
-print(f"\nPareto: Top {pareto_50} cust ({pareto_50/len(sorted_custs)*100:.1f}%) = 50% rev")
-print(f"Pareto: Top {pareto_80} cust ({pareto_80/len(sorted_custs)*100:.1f}%) = 80% rev")
-print(f"Total unique customers: {len(sorted_custs):,}")
-
-# LOB
 lob_rev = defaultdict(float)
-lob_lines = defaultdict(int)
-for r in all_sales:
-    lob_rev[r['lob']] += r['jumlah']
-    lob_lines[r['lob']] += 1
-
-print(f"\nLINE OF BUSINESS:")
-for lob in sorted(lob_rev.keys(), key=lambda x: lob_rev[x], reverse=True):
-    pct = lob_rev[lob]/total_revenue*100
-    print(f"  {lob:<10} Rp {lob_rev[lob]/1e9:>10.1f}M ({pct:>5.1f}%) {lob_lines[lob]:,} lines")
-
-# Delivery mode
 deliv_rev = defaultdict(float)
-deliv_lines = defaultdict(int)
-for r in all_sales:
-    deliv_rev[r['delivery']] += r['jumlah']
-    deliv_lines[r['delivery']] += 1
 
-print(f"\nDELIVERY MODE:")
-for d in sorted(deliv_rev.keys(), key=lambda x: deliv_rev[x], reverse=True):
-    pct = deliv_rev[d]/total_revenue*100
-    print(f"  {d or '(kosong)'}: Rp {deliv_rev[d]/1e9:>10.1f}M ({pct:>5.1f}%) {deliv_lines[d]:,} lines")
+for s in sales:
+    yr = str(s['tahun'])
+    monthly_rev[yr][s['bulan']] += s['jumlah']
+    key = s['cabang']
+    if s['tahun'] == 2025:
+        branch_rev[key]['rev25'] += s['jumlah']
+        branch_rev[key]['qty25'] += s['qty']
+    else:
+        branch_rev[key]['rev26'] += s['jumlah']
+        branch_rev[key]['qty26'] += s['qty']
+    item_rev[s['item']] += s['jumlah']
+    item_qty[s['item']] += s['qty']
+    if s['keterangan']: item_name[s['item']] = s['keterangan']
+    grup_rev[s['grup_item']] += s['jumlah']
+    if s['kode_pelanggan']:
+        cust_rev[s['kode_pelanggan']] += s['jumlah']
+        cust_name[s['kode_pelanggan']] = s['pelanggan']
+    lob_rev[s['lob']] += s['jumlah']
+    deliv_rev[s['delivery']] += s['jumlah']
 
-# Avg transaction
-print(f"\nAVERAGES:")
-print(f"  Per line item: Rp {total_revenue/total_lines:,.0f}")
-print(f"  Per invoice: Rp {total_revenue/unique_invoices:,.0f}")
+# ============================================================
+# 3. STOCK DATA
+# ============================================================
+print("Loading stock data...")
+stock_rows = load_csv('/tmp/stock_sheet.csv')
+stock = []
+for row in stock_rows[5:]:
+    if len(row) < 8 or not row[0].strip(): continue
+    stock.append({
+        'cabang': row[0].strip(),
+        'gudang': row[1].strip(),
+        'item_code': row[2].strip(),
+        'nama': row[3].strip(),
+        'awal': parse_num(row[4]),
+        'in': parse_num(row[5]),
+        'out': parse_num(row[6]),
+        'akhir': parse_num(row[7]),
+    })
+print(f"  Stock rows: {len(stock)}")
 
-# Supplier mapping
-mapped = sum(1 for r in all_sales if r['supplier'])
-unmapped_grups = set(r['grup_item'] for r in all_sales if not r['supplier'])
-print(f"\nSUPPLIER MAPPING:")
-print(f"  Mapped: {mapped:,} / {total_lines:,} ({mapped/total_lines*100:.1f}%)")
-print(f"  Unmapped groups: {sorted(unmapped_grups)}")
+stock_by_branch = defaultdict(lambda: {'items':0, 'akhir':0, 'in':0, 'out':0})
+stock_by_item = defaultdict(lambda: {'akhir':0, 'in':0, 'out':0, 'nama':''})
+for s in stock:
+    b = stock_by_branch[s['cabang']]
+    b['items'] += 1; b['akhir'] += s['akhir']; b['in'] += s['in']; b['out'] += s['out']
+    si = stock_by_item[s['item_code']]
+    si['akhir'] += s['akhir']; si['in'] += s['in']; si['out'] += s['out']; si['nama'] = s['nama']
 
-# Discount analysis
-disc_lines = sum(1 for r in all_sales if r['diskon'] > 0)
-disc_total = sum(r['diskon'] for r in all_sales)
-print(f"\nDISCOUNT ANALYSIS:")
-print(f"  Lines with discount: {disc_lines:,} / {total_lines:,} ({disc_lines/total_lines*100:.1f}%)")
-print(f"  Total discount value: Rp {disc_total:,.0f}")
-print(f"  Avg discount (when applied): Rp {disc_total/disc_lines:,.0f}" if disc_lines else "")
+# ============================================================
+# 4. PROCUREMENT DATA
+# ============================================================
+print("Loading procurement data...")
+proc_rows = load_csv('/tmp/djabes_sheet.csv')
+proc = []
+for row in proc_rows[2:]:
+    if len(row) < 10 or not row[1].strip(): continue
+    proc.append({
+        'status': row[1].strip(),
+        'reg': row[2].strip(),
+        'cab': row[3].strip(),
+        'po': row[5].strip(),
+        'kode': row[6].strip(),
+        'nama': row[7].strip(),
+        'kategori': row[8].strip(),
+        'supplier': row[9].strip(),
+        'qty_po': parse_num_id(row[11]),
+        'nilai_beli': parse_num_id(row[14]),
+        'tgl_po': row[16].strip() if len(row) > 16 else '',
+        'total_berat': parse_num_id(row[19]) if len(row) > 19 else 0,
+    })
+print(f"  Procurement rows: {len(proc)}")
 
-print(f"\nDONE.")
+proc_status = defaultdict(int)
+proc_by_reg = defaultdict(lambda: {'count':0, 'nilai':0, 'berat':0})
+proc_by_supplier = defaultdict(lambda: {'count':0, 'nilai':0})
+proc_by_kategori = defaultdict(lambda: {'count':0, 'nilai':0})
+
+for p in proc:
+    if p['status'] == 'Batal': continue
+    proc_status[p['status']] += 1
+    r = proc_by_reg[p['reg']]
+    r['count'] += 1; r['nilai'] += p['nilai_beli']; r['berat'] += p['total_berat']
+    proc_by_supplier[p['supplier']]['count'] += 1
+    proc_by_supplier[p['supplier']]['nilai'] += p['nilai_beli']
+    proc_by_kategori[p['kategori']]['count'] += 1
+    proc_by_kategori[p['kategori']]['nilai'] += p['nilai_beli']
+
+# ============================================================
+# 5. STOCK VS SALES VELOCITY
+# ============================================================
+print("Computing stock vs sales velocity...")
+item_monthly_qty = defaultdict(float)
+for s in sales:
+    if s['tahun'] == 2026:
+        item_monthly_qty[s['item']] += s['qty']
+
+stock_vs_sales = []
+for item_code, stock_info in stock_by_item.items():
+    velocity = item_monthly_qty.get(item_code, 0) / 4  # avg per month
+    stock_qty = stock_info['akhir']
+    months_of_stock = stock_qty / velocity if velocity > 0 else 999
+    status = 'OK'
+    if velocity == 0 and stock_qty > 0: status = 'NO_MOVEMENT'
+    elif months_of_stock > 6: status = 'OVERSTOCK'
+    elif months_of_stock < 1: status = 'LOW_STOCK'
+    elif months_of_stock < 2: status = 'WATCH'
+    stock_vs_sales.append({
+        'item': item_code, 'nama': stock_info['nama'],
+        'stock': stock_qty, 'velocity': round(velocity, 1),
+        'mos': round(min(months_of_stock, 999), 1), 'status': status,
+        'sales_rev': item_rev.get(item_code, 0),
+    })
+
+sv_status = defaultdict(int)
+for s in stock_vs_sales:
+    sv_status[s['status']] += 1
+
+# Sort: problems first
+priority = {'LOW_STOCK':0, 'WATCH':1, 'OVERSTOCK':2, 'NO_MOVEMENT':3, 'OK':4}
+stock_vs_sales.sort(key=lambda x: (priority.get(x['status'],5), -x['sales_rev']))
+
+# ============================================================
+# 6. GENERATE DASHBOARD JSON
+# ============================================================
+print("Generating dashboard JSON...")
+total_rev_25 = sum(s['jumlah'] for s in sales if s['tahun']==2025)
+total_rev_26 = sum(s['jumlah'] for s in sales if s['tahun']==2026)
+kpis = {
+    'rev2025': total_rev_25,
+    'rev2026': total_rev_26,
+    'rev2026_ann': total_rev_26 / 4 * 12,
+    'growth': round((total_rev_26/4*12 / total_rev_25 - 1) * 100, 1) if total_rev_25 else 0,
+    'customers': len(set(s['kode_pelanggan'] for s in sales if s['kode_pelanggan'])),
+    'skus': len(set(s['item'] for s in sales)),
+    'branches': len(set(s['cabang'] for s in sales)),
+    'stock_items': len(stock),
+    'stock_unique': len(stock_by_item),
+    'po_total': len([p for p in proc if p['status']!='Batal']),
+    'po_nilai': sum(p['nilai_beli'] for p in proc if p['status']!='Batal'),
+    'po_suppliers': len(set(p['supplier'] for p in proc if p['status']!='Batal')),
+}
+
+grup_nama_map = {
+    '01TRP':'Triplek','02GRC':'GRC Board','03PKU':'Paku','04KB':'Kawat',
+    '05SGG':'Seng','05TLG':'Talang','06HL':'Hollow','08TRMK':'Triplek MRK',
+    '08SPDK':'Spandek','10PMP':'Pipa PVC','10PGLW':'Pipa Galv',
+    '15BJR':'Baja Ringan','16BL':'Bata Ringan','19LMF':'Lem Fox',
+    '20DJ':'Djabesmen','28GPSM':'Gypsum','30KBL':'Kabel','35ASPL':'Aspal',
+}
+
+grup_sorted = sorted(grup_rev.items(), key=lambda x: x[1], reverse=True)[:12]
+branch_sorted = sorted(branch_rev.items(), key=lambda x: x[1]['rev25'], reverse=True)
+top_items_list = sorted(item_rev.items(), key=lambda x: x[1], reverse=True)[:15]
+sorted_custs = sorted(cust_rev.items(), key=lambda x: x[1], reverse=True)
+
+# Pareto
+total_cust_rev = sum(cust_rev.values())
+cum = 0
+pareto_points = []
+for i, (k, v) in enumerate(sorted_custs):
+    cum += v
+    if i < 20 or i % 50 == 0 or i == len(sorted_custs)-1:
+        pareto_points.append({'pctCust':round((i+1)/len(sorted_custs)*100,1),'pctRev':round(cum/total_cust_rev*100,1)})
+
+lob_sorted_list = sorted(lob_rev.items(), key=lambda x: x[1], reverse=True)
+
+# Stock
+stock_branch_sorted = sorted(stock_by_branch.items(), key=lambda x: x[1]['akhir'], reverse=True)
+top_stock = sorted(stock_by_item.items(), key=lambda x: x[1]['akhir'], reverse=True)[:20]
+
+# Procurement
+proc_reg_sorted = sorted(proc_by_reg.items(), key=lambda x: x[1]['nilai'], reverse=True)
+proc_sup_sorted = sorted(proc_by_supplier.items(), key=lambda x: x[1]['nilai'], reverse=True)[:10]
+proc_kat_sorted = sorted(proc_by_kategori.items(), key=lambda x: x[1]['nilai'], reverse=True)[:10]
+
+dashboard = {
+    'kpis': kpis,
+    'monthly': {'labels': month_order, 'y2025': [monthly_rev['2025'].get(m,0) for m in month_order], 'y2026': [monthly_rev['2026'].get(m,0) for m in month_order]},
+    'branches': {'labels':[b[0] for b in branch_sorted],'rev25':[b[1]['rev25'] for b in branch_sorted],'rev26':[b[1]['rev26'] for b in branch_sorted]},
+    'products': {'labels':[grup_nama_map.get(g[0],g[0]) for g in grup_sorted],'values':[g[1] for g in grup_sorted]},
+    'items': [{'kode':i[0],'nama':item_name.get(i[0],i[0])[:45],'revenue':i[1],'qty':item_qty[i[0]]} for i in top_items_list],
+    'customers': [{'kode':c[0],'nama':cust_name.get(c[0],'')[:30],'revenue':c[1]} for c in sorted_custs[:20]],
+    'pareto': pareto_points,
+    'lob': {'labels':[l[0] for l in lob_sorted_list],'values':[l[1] for l in lob_sorted_list]},
+    'stock': {
+        'branches': {'labels':[b[0] for b in stock_branch_sorted],'items':[b[1]['items'] for b in stock_branch_sorted],'akhir':[b[1]['akhir'] for b in stock_branch_sorted],'masuk':[b[1]['in'] for b in stock_branch_sorted],'keluar':[b[1]['out'] for b in stock_branch_sorted]},
+        'items': [{'item':s[0],'nama':s[1]['nama'][:40],'akhir':s[1]['akhir'],'masuk':s[1]['in'],'keluar':s[1]['out']} for s in top_stock],
+        'vs_sales': {'summary': dict(sv_status), 'items': [s for s in stock_vs_sales if s['status']!='OK'][:50]},
+    },
+    'procurement': {
+        'pipeline': {'labels':['Estimasi Supply','Disetujui Manager','Perjalanan','Sudah Diterima'],'values':[proc_status.get(s,0) for s in ['Estimasi Supply','Disetujui Manager','Perjalanan','Sudah Diterima']]},
+        'regions': {'labels':[r[0] for r in proc_reg_sorted],'count':[r[1]['count'] for r in proc_reg_sorted],'nilai':[r[1]['nilai'] for r in proc_reg_sorted],'berat':[r[1]['berat'] for r in proc_reg_sorted]},
+        'suppliers': {'labels':[s[0][:25] for s in proc_sup_sorted],'count':[s[1]['count'] for s in proc_sup_sorted],'nilai':[s[1]['nilai'] for s in proc_sup_sorted]},
+        'categories': {'labels':[k[0] for k in proc_kat_sorted],'count':[k[1]['count'] for k in proc_kat_sorted],'nilai':[k[1]['nilai'] for k in proc_kat_sorted]},
+    },
+}
+
+out_path = '/root/sna-dashboard/dashboard_data.json'
+with open(out_path, 'w') as f:
+    json.dump(dashboard, f)
+
+print(f"\n✅ Dashboard JSON: {os.path.getsize(out_path):,} bytes")
+print(f"Sales: {len(sales)} rows, Rev25=Rp{kpis['rev2025']/1e9:.1f}B, Rev26=Rp{kpis['rev2026']/1e9:.1f}B, Growth={kpis['growth']}%")
+print(f"Stock: {kpis['stock_items']} items, {kpis['stock_unique']} unique SKUs")
+print(f"PO: {kpis['po_total']} rows, Rp{kpis['po_nilai']/1e9:.1f}B")
+print(f"Stock vs Sales: {dict(sv_status)}")

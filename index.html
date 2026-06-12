@@ -3,329 +3,587 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PT SNA — Dashboard Penjualan</title>
+<title>PT SNA Dashboard</title>
 <script src="chart.min.js"></script>
 <style>
-  :root {
-    --bg: #0f1117; --surface: #1a1d27; --surface2: #242836;
-    --border: #2d3140; --text: #e4e4e7; --muted: #8b8fa3;
-    --accent: #6366f1; --accent2: #818cf8; --green: #22c55e;
-    --red: #ef4444; --orange: #f97316; --yellow: #eab308;
-    --blue: #3b82f6; --purple: #a78bfa; --teal: #14b8a6;
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
-  .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
-  h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-  h1 span { color: var(--accent2); }
-  .subtitle { color: var(--muted); font-size: 13px; }
-  .year-toggle { display: flex; gap: 4px; background: var(--surface); border-radius: 8px; padding: 4px; }
-  .year-btn { padding: 6px 16px; border: none; background: transparent; color: var(--muted); cursor: pointer; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; }
-  .year-btn.active { background: var(--accent); color: #fff; }
-
-  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
-  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-  .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 4px; }
-  .kpi-value { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .kpi-green { color: var(--green); }
-  .kpi-red { color: var(--red); }
-
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-  @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
-
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-  .card-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
-  .card-title small { color: var(--muted); font-weight: 400; }
-
-  .chart-wrap { position: relative; height: 300px; }
-  .chart-wrap canvas { max-height: 100%; }
-
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 6px; border-bottom: 1px solid var(--border); }
-  td { padding: 8px 6px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
-  tr:last-child td { border-bottom: none; }
-  .mono { font-family: 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; }
-  .right { text-align: right; }
-  .bar-bg { background: var(--surface2); border-radius: 4px; height: 6px; width: 100%; position: relative; }
-  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
-  .pct-bar { width: 80px; display: inline-block; vertical-align: middle; margin-left: 8px; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
-  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
-
-  footer { text-align: center; color: var(--muted); font-size: 11px; padding: 24px 0 12px; border-top: 1px solid var(--border); margin-top: 24px; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f1117;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh}
+.header{background:#1a1d27;padding:16px 24px;border-bottom:1px solid #2a2d3a;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.header h1{font-size:20px;color:#fff;white-space:nowrap}
+.header h1 span{color:#6c5ce7}
+.header .subtitle{font-size:12px;color:#888}
+.tabs{display:flex;background:#1a1d27;border-bottom:2px solid #2a2d3a;padding:0 16px;overflow-x:auto}
+.tab{padding:12px 20px;cursor:pointer;color:#888;font-size:14px;font-weight:500;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap}
+.tab:hover{color:#ccc}
+.tab.active{color:#6c5ce7;border-bottom-color:#6c5ce7}
+.tab-content{display:none;padding:20px;max-width:1400px;margin:0 auto}
+.tab-content.active{display:block}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:#1a1d27;border-radius:10px;padding:16px;border:1px solid #2a2d3a}
+.kpi .label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi .value{font-size:22px;font-weight:700;color:#fff}
+.kpi .value.green{color:#00b894}
+.kpi .value.purple{color:#6c5ce7}
+.kpi .value.orange{color:#fdcb6e}
+.kpi .value.red{color:#e17055}
+.kpi .value.blue{color:#74b9ff}
+.kpi .sub{font-size:11px;color:#666;margin-top:4px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-2-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+.grid-1-2{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px}
+.card{background:#1a1d27;border-radius:10px;padding:16px;border:1px solid #2a2d3a}
+.card h3{font-size:14px;color:#aaa;margin-bottom:12px;font-weight:600}
+.chart-wrap{position:relative;width:100%;max-height:320px}
+.chart-wrap canvas{max-height:320px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 10px;color:#888;border-bottom:1px solid #2a2d3a;font-weight:600;font-size:11px;text-transform:uppercase}
+td{padding:7px 10px;border-bottom:1px solid #1e2130;color:#ccc}
+tr:hover td{background:#1e2130}
+.text-right{text-align:right}
+.text-center{text-align:center}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+.badge-green{background:#00b89422;color:#00b894}
+.badge-red{background:#e1705522;color:#e17055}
+.badge-orange{background:#fdcb6e22;color:#fdcb6e}
+.badge-blue{background:#74b9ff22;color:#74b9ff}
+.badge-gray{background:#636e7222;color:#b2bec3}
+.badge-purple{background:#6c5ce722;color:#a29bfe}
+.progress-bar{height:6px;background:#2a2d3a;border-radius:3px;overflow:hidden;margin-top:4px}
+.progress-bar .fill{height:100%;border-radius:3px;transition:width .5s}
+.pipeline{display:flex;align-items:center;gap:0;margin:12px 0;flex-wrap:wrap}
+.pipeline-step{flex:1;text-align:center;padding:12px 8px;position:relative;min-width:100px}
+.pipeline-step .step-val{font-size:24px;font-weight:700;color:#fff}
+.pipeline-step .step-label{font-size:11px;color:#888;margin-top:4px}
+.pipeline-arrow{color:#6c5ce7;font-size:20px;padding:0 4px}
+@media(max-width:900px){.grid-2,.grid-3,.grid-2-1,.grid-1-2{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}}
+.section-title{font-size:16px;color:#fff;margin:20px 0 12px;font-weight:600}
+.scroll-table{max-height:400px;overflow-y:auto}
+.scroll-table::-webkit-scrollbar{width:6px}
+.scroll-table::-webkit-scrollbar-track{background:#1a1d27}
+.scroll-table::-webkit-scrollbar-thumb{background:#2a2d3a;border-radius:3px}
 </style>
 </head>
 <body>
-<div class="container">
-<header>
+<div class="header">
   <div>
-    <h1>📦 <span>PT SNA</span> — Dashboard Penjualan</h1>
-    <div class="subtitle">Saka Niaga Sukses Abadi • 2025–2026 YTD • 24 cabang</div>
+    <h1>📦 PT <span>SNA</span> Dashboard</h1>
+    <div class="subtitle">Building Material Distributor — Analitik Penjualan, Stok & Pengadaan</div>
   </div>
-</header>
+  <div style="text-align:right">
+    <div style="font-size:12px;color:#6c5ce7">Data 2026 YTD (Jan–Apr)</div>
+    <div style="font-size:11px;color:#666">vs Full Year 2025</div>
+  </div>
+</div>
+<div class="tabs" id="tabBar">
+  <div class="tab active" data-tab="sales">📊 Penjualan</div>
+  <div class="tab" data-tab="stock">📦 Stok</div>
+  <div class="tab" data-tab="procurement">🛒 Pengadaan</div>
+  <div class="tab" data-tab="supply">🔗 Supply Chain</div>
+</div>
 
-<!-- KPI CARDS -->
-<div class="kpi-grid">
-  <div class="kpi">
-    <div class="kpi-label">Revenue 2025</div>
-    <div class="kpi-value">Rp 182.4B</div>
-    <div class="kpi-sub">Full year • 12 bulan</div>
+<!-- TAB 1: SALES -->
+<div class="tab-content active" id="tab-sales">
+  <div class="kpi-row" id="sales-kpis"></div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Tren Pendapatan Bulanan</h3>
+      <div class="chart-wrap"><canvas id="chartMonthly"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Performa Cabang (2025 vs 2026 YTD)</h3>
+      <div class="chart-wrap"><canvas id="chartBranches"></canvas></div>
+    </div>
   </div>
-  <div class="kpi">
-    <div class="kpi-label">Revenue 2026 YTD</div>
-    <div class="kpi-value">Rp 78.1B</div>
-    <div class="kpi-sub">4 bulan • Annualized Rp 234.2B</div>
+  <div class="grid-2-1">
+    <div class="card">
+      <h3>Pareto Pelanggan (Kumulatif % Revenue vs % Customer)</h3>
+      <div class="chart-wrap"><canvas id="chartPareto"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Product Mix (Revenue per Kategori)</h3>
+      <div class="chart-wrap"><canvas id="chartProducts"></canvas></div>
+    </div>
   </div>
-  <div class="kpi">
-    <div class="kpi-label">Pertumbuhan YoY</div>
-    <div class="kpi-value kpi-green">▲ 28.4%</div>
-    <div class="kpi-sub">Annualized vs 2025</div>
+  <div class="card">
+    <h3>Top 15 Item Berdasarkan Revenue</h3>
+    <div class="scroll-table">
+      <table id="tableItems">
+        <thead><tr><th>#</th><th>Kode</th><th>Nama Item</th><th class="text-right">Qty</th><th class="text-right">Revenue</th><th>% Total</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
-  <div class="kpi">
-    <div class="kpi-label">Pelanggan</div>
-    <div class="kpi-value">3,617</div>
-    <div class="kpi-sub">Unique customers</div>
-  </div>
-  <div class="kpi">
-    <div class="kpi-label">Invoices</div>
-    <div class="kpi-value">69,059</div>
-    <div class="kpi-sub">Total transaksi</div>
-  </div>
-  <div class="kpi">
-    <div class="kpi-label">SKU Aktif</div>
-    <div class="kpi-value">1,292</div>
-    <div class="kpi-sub">Produk terjual</div>
+  <div class="grid-2" style="margin-top:16px">
+    <div class="card">
+      <h3>Top 20 Pelanggan</h3>
+      <div class="scroll-table">
+        <table id="tableCustomers">
+          <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th class="text-right">Revenue</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Line of Business (LOB)</h3>
+      <div class="chart-wrap"><canvas id="chartLOB"></canvas></div>
+    </div>
   </div>
 </div>
 
-<!-- CHART ROW 1: Monthly Trend + YoY -->
-<div class="grid-2">
-  <div class="card">
-    <div class="card-title">📈 Trend Pendapatan Bulanan <small>Rp Miliar</small></div>
-    <div class="chart-wrap"><canvas id="chartMonthly"></canvas></div>
+<!-- TAB 2: STOCK -->
+<div class="tab-content" id="tab-stock">
+  <div class="kpi-row" id="stock-kpis"></div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Stok per Cabang</h3>
+      <div class="chart-wrap"><canvas id="chartStockBranch"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Status Stok vs Sales Velocity</h3>
+      <div class="chart-wrap"><canvas id="chartStockStatus"></canvas></div>
+    </div>
   </div>
   <div class="card">
-    <div class="card-title">📊 YoY Perbandingan Bulanan <small>2026 vs 2025 (sama bulan)</small></div>
-    <div class="chart-wrap"><canvas id="chartYoY"></canvas></div>
+    <h3>Top 20 Item Stok Terbanyak</h3>
+    <div class="scroll-table">
+      <table id="tableStockItems">
+        <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th class="text-right">Akhir</th><th class="text-right">Masuk</th><th class="text-right">Keluar</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
-</div>
-
-<!-- CHART ROW 2: Branch + Product -->
-<div class="grid-2">
-  <div class="card">
-    <div class="card-title">🏢 Top 15 Cabang <small>Revenue 2025</small></div>
-    <div class="chart-wrap"><canvas id="chartBranch"></canvas></div>
-  </div>
-  <div class="card">
-    <div class="card-title">📦 Komposisi Produk <small>% revenue by grup</small></div>
-    <div class="chart-wrap"><canvas id="chartProduct"></canvas></div>
-  </div>
-</div>
-
-<!-- CHART ROW 3: LOB + Delivery -->
-<div class="grid-3">
-  <div class="card">
-    <div class="card-title">🏷️ Line of Business</div>
-    <div class="chart-wrap"><canvas id="chartLOB"></canvas></div>
-  </div>
-  <div class="card">
-    <div class="card-title">🚚 Delivery Mode</div>
-    <div class="chart-wrap"><canvas id="chartDelivery"></canvas></div>
-  </div>
-  <div class="card">
-    <div class="card-title">👥 Customer Pareto</div>
-    <div class="chart-wrap"><canvas id="chartPareto"></canvas></div>
+  <div class="card" style="margin-top:16px">
+    <h3>Stock vs Sales Velocity — Item Detail (Top 50)</h3>
+    <div class="scroll-table" style="max-height:500px">
+      <table id="tableStockVsSales">
+        <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th class="text-right">Stok</th><th class="text-right">Velocity/bln</th><th class="text-right">MoS</th><th>Status</th><th class="text-right">Revenue</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
-<!-- TABLE: Top 15 Items -->
-<div class="card" style="margin-bottom:16px">
-  <div class="card-title">🏆 Top 15 Item Terlaris <small>Revenue 2025+2026</small></div>
-  <table>
-    <thead><tr><th>#</th><th>Kode</th><th>Nama Item</th><th class="right">Qty</th><th class="right">Revenue</th><th>% Share</th></tr></thead>
-    <tbody id="tableItems"></tbody>
-  </table>
+<!-- TAB 3: PROCUREMENT -->
+<div class="tab-content" id="tab-procurement">
+  <div class="kpi-row" id="proc-kpis"></div>
+  <div class="card">
+    <h3>Pipeline PO (Estimasi → Disetujui → Perjalanan → Diterima)</h3>
+    <div class="pipeline" id="pipelineView"></div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Spending per Wilayah</h3>
+      <div class="chart-wrap"><canvas id="chartProcRegion"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Distribusi PO per Wilayah</h3>
+      <div class="chart-wrap"><canvas id="chartProcRegionCount"></canvas></div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Top 10 Supplier (Nilai PO)</h3>
+      <div class="chart-wrap"><canvas id="chartSuppliers"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Kategori Pengadaan (Nilai PO)</h3>
+      <div class="chart-wrap"><canvas id="chartProcCat"></canvas></div>
+    </div>
+  </div>
 </div>
 
-<!-- TABLE: Top 20 Customers -->
-<div class="card" style="margin-bottom:16px">
-  <div class="card-title">👤 Top 20 Pelanggan <small>Revenue 2025+2026</small></div>
-  <table>
-    <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th class="right">Revenue</th><th>% Share</th></tr></thead>
-    <tbody id="tableCustomers"></tbody>
-  </table>
-</div>
-
-<!-- TABLE: Branch Detail -->
-<div class="card" style="margin-bottom:16px">
-  <div class="card-title">🏢 Detail Cabang <small>YoY comparison</small></div>
-  <table>
-    <thead><tr><th>Cabang</th><th class="right">2025</th><th class="right">2026 YTD</th><th class="right">2026 Ann.</th><th class="right">YoY</th><th>Growth</th></tr></thead>
-    <tbody id="tableBranch"></tbody>
-  </table>
-</div>
-
-<footer>PT Saka Niaga Sukses Abadi • Dashboard generated Jun 2026 • Data: Google Sheets</footer>
+<!-- TAB 4: SUPPLY CHAIN -->
+<div class="tab-content" id="tab-supply">
+  <div class="kpi-row" id="supply-kpis"></div>
+  <div class="grid-3">
+    <div class="card">
+      <h3>Distribusi Status Stok</h3>
+      <div class="chart-wrap"><canvas id="chartSupplyStatus"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Revenue by Status Stok</h3>
+      <div class="chart-wrap"><canvas id="chartSupplyRevByStatus"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Pipeline Pengadaan</h3>
+      <div class="chart-wrap"><canvas id="chartSupplyPipeline"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>⚠️ Items Needing Attention — LOW_STOCK & WATCH (Revenue Tinggi, Stok Rendah)</h3>
+    <div class="scroll-table" style="max-height:500px">
+      <table id="tableAttention">
+        <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th>Status</th><th class="text-right">Stok</th><th class="text-right">Velocity</th><th class="text-right">MoS</th><th class="text-right">Revenue</th><th>Action</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>🔄 Sales Velocity → Stock → Procurement Cross-Reference (Top Items)</h3>
+    <div class="scroll-table" style="max-height:500px">
+      <table id="tableCrossRef">
+        <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th class="text-right">Revenue</th><th class="text-right">Stok</th><th class="text-right">Velocity/bln</th><th class="text-right">MoS</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script>
-const D = {"kpis": {"rev2025": 182385677215.52002, "rev2026": 78053397826.94, "rev2026_ann": 234160193480.82, "growth": 28.4, "customers": 3617, "invoices": 69059, "skus": 1292, "branches": 24, "n_months_2026": 4}, "monthly": {"labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], "y2025": [15131547905.5, 13666626536.69, 10228181910.0, 11374365220.64, 14748618916.0, 14973539171.76, 16108924750.5, 14760833938.0, 16761940722.6, 18399243362.23, 17019512277.6, 19212342504.0], "y2026": [20705374832.77, 17292525601.489998, 14877197420.0, 25178299972.68, 0, 0, 0, 0, 0, 0, 0, 0]}, "branches": {"labels": ["MTR", "GYR", "DPS", "TBN", "SIN", "KRS", "KTI", "KLK", "NGR", "SBW", "LTM", "BMA", "KPG", "BPN", "SMD", "TGT", "PRJHO", "PLR", "SBY", "DISL", "PRK", "PRJNTB", "PRJ", "PRJ-NTB"], "rev25": [23537480755.5, 15430555638.0, 15388856491.0, 15128696433.0, 12565724724.0, 12519661482.0, 12034916377.28, 11732924075.75, 11226080346.0, 7853117479.0, 7625969893.0, 7425025068.0, 6858015554.23, 5516320739.26, 5514244008.0, 4673147197.0, 2909701584.0, 2075887110.5, 1174502310.0, 1114178050.0, 64526900.0, 16145000.0, 0, 0], "rev26": [8902511321.0, 6025999905.0, 6270709789.190001, 5474157499.0, 5620769884.0, 4897412311.0, 4609784694.5, 4453062720.0, 4223546891.0, 2574389482.5, 3828087324.0, 3096456385.0, 4561112565.0, 2215509735.5, 2593245286.75, 2412631727.5, 0, 694356679.0, 0, 726208320.0, 53701275.0, 0, 4807305282.0, 12438750.0]}, "products": {"labels": ["Paku", "Kabel", "Triplek MRK", "GRC Board", "Bata Ringan", "Djabesmen", "Lem Fox", "Gypsum", "Seng", "Kawat", "Baja Ringan", "Kusen"], "values": [40406326707.0, 35101329329.2, 31331731149.0, 27196829272.49, 20460718600.0, 16149579302.0, 15233158842.23, 12910033371.0, 10179667817.0, 9799298012.5, 9484042285.5, 6230975221.0]}, "items": [{"kode": "20DJ113.3X180", "nama": "ASBES DJABES 11 GELOMBANG KECIL 3.3MMX1800X80", "revenue": 15622160382.0, "qty": 511544.0}, {"kode": "28GSY9120240", "nama": "GYPSUM BOARD YOSHINO 9X1200X2400MM", "revenue": 11465873750.0, "qty": 208833.0}, {"kode": "03PQ300", "nama": "PAKU SUPERQ 7CM (3\" X 10 @30KG)", "revenue": 10807480638.5, "qty": 25011.0}, {"kode": "16BL10", "nama": "BATA RINGAN BLESSCON 60CM X 20CM X10CM", "revenue": 7770851787.0, "qty": 10111.010000000002}, {"kode": "04BA20", "nama": "KAWAT BENDRAT BWG-21 @20KG", "revenue": 7326912852.5, "qty": 27326.0}, {"kode": "03PQ200", "nama": "PAKU SUPERQ 5CM (2\" X 12 @30KG)", "revenue": 6269651715.0, "qty": 14400.0}, {"kode": "19LMFPVHK70D", "nama": "LEM FOX PVAC (HIJAU) KANTONG 700G (240) DRM", "revenue": 6111320573.0, "qty": 1405.0}, {"kode": "02GRCB3.5X120", "nama": "GRC CILUK BOARD 3.5MMX1200X2400 SE", "revenue": 6060271525.5, "qty": 130681.0}, {"kode": "16BF10", "nama": "BATA RINGAN FOCON 60CM X 20CM X 10CM", "revenue": 5959998040.0, "qty": 7957.080000000003}, {"kode": "05SGAB914", "nama": "SENG CAP GAJAH ASIA GEL. BESAR 0.2X914X1829", "revenue": 5671763997.0, "qty": 120435.0}, {"kode": "03PQ400", "nama": "PAKU SUPERQ 10CM (4\" X 8 @30KG)", "revenue": 5474559924.5, "qty": 12642.0}, {"kode": "02GRC4X120", "nama": "GRC BOARD 4MMX1200X2400 SE", "revenue": 5447555985.0, "qty": 90386.0}, {"kode": "08TND0.25X6", "nama": "TRIMDEK NEODECK SILVER 0.25MMX75CMX6M", "revenue": 5374088523.0, "qty": 41603.0}, {"kode": "30KBLS325100", "nama": "KABEL SUPREME NYM 3X2.5 MM2 (RE) 100M", "revenue": 4653507895.0, "qty": 2483.0}, {"kode": "16BU10", "nama": "BATA RINGAN UTOMO 60CM X 20CM X 10CM", "revenue": 4592956194.0, "qty": 6087.219999999999}], "customers": [{"kode": "210.000914", "nama": "DIVA, TK", "revenue": 2655268150.0}, {"kode": "700.000096", "nama": "PT. BRUDER KONSTRUKSI NUSANTAR", "revenue": 2539986285.0}, {"kode": "110.002540", "nama": "SURYA PRISMA ELEKTRINDO, CV", "revenue": 2524374716.0}, {"kode": "211.000174", "nama": "MILA KARYA MANDIRI, CV", "revenue": 1721022841.0}, {"kode": "110.000588", "nama": "PUTRA LESTARI, UD", "revenue": 1658904599.0}, {"kode": "210.000989", "nama": "KUTA LISTRIK, TK", "revenue": 1575056223.0}, {"kode": "210.000863", "nama": "RINJANI ELEKTRIK, UD", "revenue": 1537787810.0}, {"kode": "210.000811", "nama": "LOMBOK KARUNIA UTAMA, PT", "revenue": 1449362318.0}, {"kode": "620.000008", "nama": "MINI DEPO INDONESIA, PT", "revenue": 1174502310.0}, {"kode": "230.000217", "nama": "LABALONG SEJAHTERA, CV", "revenue": 1090348776.0}, {"kode": "150.000552", "nama": "SATRIA BUANA PERKASA, CV", "revenue": 1077829140.0}, {"kode": "160.000136", "nama": "KEMBAR BANGUNAN, UD", "revenue": 1054323897.0}, {"kode": "420.001034", "nama": "UD. CAHAYA, UD", "revenue": 1053118949.0}, {"kode": "110.002436", "nama": "SURYA, TK", "revenue": 979701430.0}, {"kode": "110.002366", "nama": "ECOLIT KONTRAKTOR BALI, PT", "revenue": 958894200.0}, {"kode": "210.000287", "nama": "SRI JAYA BANGUNAN TK, TK", "revenue": 953988766.0}, {"kode": "110.001322", "nama": "CAHAYA PUTRI, UD", "revenue": 881262364.0}, {"kode": "420.000764", "nama": "KLASIK PROMETALINDO, CV", "revenue": 864864700.0}, {"kode": "310.000480", "nama": "MITRA BANGUNAN, CV", "revenue": 840030177.0}, {"kode": "220.000093", "nama": "SAHABAT, TK", "revenue": 820228675.0}], "pareto": [{"pctCust": 0.0, "pctRev": 1.0}, {"pctCust": 0.1, "pctRev": 2.0}, {"pctCust": 0.1, "pctRev": 3.0}, {"pctCust": 0.1, "pctRev": 3.6}, {"pctCust": 0.1, "pctRev": 4.3}, {"pctCust": 0.2, "pctRev": 4.9}, {"pctCust": 0.2, "pctRev": 5.5}, {"pctCust": 0.2, "pctRev": 6.0}, {"pctCust": 0.2, "pctRev": 6.5}, {"pctCust": 0.3, "pctRev": 6.9}, {"pctCust": 0.3, "pctRev": 7.3}, {"pctCust": 0.3, "pctRev": 7.7}, {"pctCust": 0.4, "pctRev": 8.1}, {"pctCust": 0.4, "pctRev": 8.5}, {"pctCust": 0.4, "pctRev": 8.9}, {"pctCust": 0.4, "pctRev": 9.2}, {"pctCust": 0.5, "pctRev": 9.6}, {"pctCust": 0.5, "pctRev": 9.9}, {"pctCust": 0.5, "pctRev": 10.2}, {"pctCust": 0.6, "pctRev": 10.5}, {"pctCust": 1.4, "pctRev": 18.3}, {"pctCust": 2.8, "pctRev": 26.4}, {"pctCust": 4.2, "pctRev": 32.3}, {"pctCust": 5.6, "pctRev": 37.3}, {"pctCust": 6.9, "pctRev": 41.7}, {"pctCust": 8.3, "pctRev": 45.6}, {"pctCust": 9.7, "pctRev": 49.2}, {"pctCust": 11.1, "pctRev": 52.5}, {"pctCust": 12.5, "pctRev": 55.5}, {"pctCust": 13.9, "pctRev": 58.2}, {"pctCust": 15.2, "pctRev": 60.8}, {"pctCust": 16.6, "pctRev": 63.1}, {"pctCust": 18.0, "pctRev": 65.3}, {"pctCust": 19.4, "pctRev": 67.4}, {"pctCust": 20.8, "pctRev": 69.4}, {"pctCust": 22.1, "pctRev": 71.2}, {"pctCust": 23.5, "pctRev": 72.9}, {"pctCust": 24.9, "pctRev": 74.5}, {"pctCust": 26.3, "pctRev": 76.1}, {"pctCust": 27.7, "pctRev": 77.5}, {"pctCust": 29.1, "pctRev": 78.9}, {"pctCust": 30.4, "pctRev": 80.2}, {"pctCust": 31.8, "pctRev": 81.4}, {"pctCust": 33.2, "pctRev": 82.6}, {"pctCust": 34.6, "pctRev": 83.7}, {"pctCust": 36.0, "pctRev": 84.7}, {"pctCust": 37.4, "pctRev": 85.7}, {"pctCust": 38.7, "pctRev": 86.6}, {"pctCust": 40.1, "pctRev": 87.4}, {"pctCust": 41.5, "pctRev": 88.3}, {"pctCust": 42.9, "pctRev": 89.0}, {"pctCust": 44.3, "pctRev": 89.8}, {"pctCust": 45.6, "pctRev": 90.4}, {"pctCust": 47.0, "pctRev": 91.1}, {"pctCust": 48.4, "pctRev": 91.7}, {"pctCust": 49.8, "pctRev": 92.3}, {"pctCust": 51.2, "pctRev": 92.9}, {"pctCust": 52.6, "pctRev": 93.4}, {"pctCust": 53.9, "pctRev": 93.9}, {"pctCust": 55.3, "pctRev": 94.4}, {"pctCust": 56.7, "pctRev": 94.8}, {"pctCust": 58.1, "pctRev": 95.2}, {"pctCust": 59.5, "pctRev": 95.6}, {"pctCust": 60.9, "pctRev": 96.0}, {"pctCust": 62.2, "pctRev": 96.4}, {"pctCust": 63.6, "pctRev": 96.7}, {"pctCust": 65.0, "pctRev": 97.0}, {"pctCust": 66.4, "pctRev": 97.3}, {"pctCust": 67.8, "pctRev": 97.5}, {"pctCust": 69.1, "pctRev": 97.8}, {"pctCust": 70.5, "pctRev": 98.0}, {"pctCust": 71.9, "pctRev": 98.2}, {"pctCust": 73.3, "pctRev": 98.4}, {"pctCust": 74.7, "pctRev": 98.6}, {"pctCust": 76.1, "pctRev": 98.8}, {"pctCust": 77.4, "pctRev": 98.9}, {"pctCust": 78.8, "pctRev": 99.1}, {"pctCust": 80.2, "pctRev": 99.2}, {"pctCust": 81.6, "pctRev": 99.3}, {"pctCust": 83.0, "pctRev": 99.4}, {"pctCust": 84.4, "pctRev": 99.5}, {"pctCust": 85.7, "pctRev": 99.6}, {"pctCust": 87.1, "pctRev": 99.7}, {"pctCust": 88.5, "pctRev": 99.7}, {"pctCust": 89.9, "pctRev": 99.8}, {"pctCust": 91.3, "pctRev": 99.8}, {"pctCust": 92.6, "pctRev": 99.9}, {"pctCust": 94.0, "pctRev": 99.9}, {"pctCust": 95.4, "pctRev": 100.0}, {"pctCust": 96.8, "pctRev": 100.0}, {"pctCust": 98.2, "pctRev": 100.0}, {"pctCust": 99.6, "pctRev": 100.0}, {"pctCust": 100.0, "pctRev": 100.0}], "lob": {"labels": ["RTL", "PRJ", "WHS", "PRV", "DIST", "IND"], "values": [228124562968.77002, 13517341562.189997, 12570434640.5, 4044230518.0, 1714086370.0, 468418983.0]}, "delivery": {"labels": ["KIRIM", "AMBIL"], "values": [204626749076.43994, 55812325966.020004]}, "yoy": [{"month": "Jan", "v2025": 15131547905.5, "v2026": 20705374832.77, "growth": 36.8}, {"month": "Feb", "v2025": 13666626536.69, "v2026": 17292525601.489998, "growth": 26.5}, {"month": "Mar", "v2025": 10228181910.0, "v2026": 14877197420.0, "growth": 45.5}, {"month": "Apr", "v2025": 11374365220.64, "v2026": 25178299972.68, "growth": 121.4}, {"month": "May", "v2025": 14748618916.0, "v2026": 0, "growth": null}, {"month": "Jun", "v2025": 14973539171.76, "v2026": 0, "growth": null}, {"month": "Jul", "v2025": 16108924750.5, "v2026": 0, "growth": null}, {"month": "Aug", "v2025": 14760833938.0, "v2026": 0, "growth": null}, {"month": "Sep", "v2025": 16761940722.6, "v2026": 0, "growth": null}, {"month": "Oct", "v2025": 18399243362.23, "v2026": 0, "growth": null}, {"month": "Nov", "v2025": 17019512277.6, "v2026": 0, "growth": null}, {"month": "Dec", "v2025": 19212342504.0, "v2026": 0, "growth": null}]};
+const D = {"kpis":{"rev2025":182385677215.52002,"rev2026":78053397826.94,"rev2026_ann":234160193480.82,"growth":28.4,"customers":3617,"skus":1292,"branches":24,"stock_items":4226,"stock_unique":1381,"po_total":5209,"po_nilai":128096600753.4,"po_suppliers":31},"monthly":{"labels":["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],"y2025":[15131547905.5,13666626536.69,10228181910.0,11374365220.64,14748618916.0,14973539171.76,16108924750.5,14760833938.0,16761940722.6,18399243362.23,17019512277.6,19212342504.0],"y2026":[20705374832.77,17292525601.489998,14877197420.0,25178299972.68,0,0,0,0,0,0,0,0]},"branches":{"labels":["MTR","GYR","DPS","TBN","SIN","KRS","KTI","KLK","NGR","SBW","LTM","BMA","KPG","BPN","SMD","TGT","PRJHO","PLR","SBY","DISL","PRK","PRJNTB","PRJ","PRJ-NTB"],"rev25":[23537480755.5,15430555638.0,15388856491.0,15128696433.0,12565724724.0,12519661482.0,12034916377.28,11732924075.75,11226080346.0,7853117479.0,7625969893.0,7425025068.0,6858015554.23,5516320739.26,5514244008.0,4673147197.0,2909701584.0,2075887110.5,1174502310.0,1114178050.0,64526900.0,16145000.0,0,0],"rev26":[8902511321.0,6025999905.0,6270709789.190001,5474157499.0,5620769884.0,4897412311.0,4609784694.5,4453062720.0,4223546891.0,2574389482.5,3828087324.0,3096456385.0,4561112565.0,2215509735.5,2593245286.75,2412631727.5,0,694356679.0,0,726208320.0,53701275.0,0,4807305282.0,12438750.0]},"products":{"labels":["Paku","Kabel","Triplek MRK","GRC Board","Bata Ringan","Djabesmen","Lem Fox","Gypsum","Seng","Kawat","Baja Ringan","22KS"],"values":[40406326707.0,35101329329.2,31331731149.0,27196829272.49,20460718600.0,16149579302.0,15233158842.23,12910033371.0,10179667817.0,9799298012.5,9484042285.5,6230975221.0]},"items":[{"kode":"20DJ113.3X180","nama":"ASBES DJABES 11 GELOMBANG KECIL 3.3MMX1800X80","revenue":15622160382.0,"qty":511544.0},{"kode":"28GSY9120240","nama":"GYPSUM BOARD YOSHINO 9X1200X2400MM","revenue":11465873750.0,"qty":208833.0},{"kode":"03PQ300","nama":"PAKU SUPERQ 7CM (3\" X 10 @30KG)","revenue":10807480638.5,"qty":25011.0},{"kode":"16BL10","nama":"BATA RINGAN BLESSCON 60CM X 20CM X10CM","revenue":7770851787.0,"qty":10111.010000000002},{"kode":"04BA20","nama":"KAWAT BENDRAT BWG-21 @20KG","revenue":7326912852.5,"qty":27326.0},{"kode":"03PQ200","nama":"PAKU SUPERQ 5CM (2\" X 12 @30KG)","revenue":6269651715.0,"qty":14400.0},{"kode":"19LMFPVHK70D","nama":"LEM FOX PVAC (HIJAU) KANTONG 700G (240) DRM","revenue":6111320573.0,"qty":1405.0},{"kode":"02GRCB3.5X120","nama":"GRC CILUK BOARD 3.5MMX1200X2400 SE","revenue":6060271525.5,"qty":130681.0},{"kode":"16BF10","nama":"BATA RINGAN FOCON 60CM X 20CM X 10CM","revenue":5959998040.0,"qty":7957.080000000003},{"kode":"05SGAB914","nama":"SENG CAP GAJAH ASIA GEL. BESAR 0.2X914X1829","revenue":5671763997.0,"qty":120435.0},{"kode":"03PQ400","nama":"PAKU SUPERQ 10CM (4\" X 8 @30KG)","revenue":5474559924.5,"qty":12642.0},{"kode":"02GRC4X120","nama":"GRC BOARD 4MMX1200X2400 SE","revenue":5447555985.0,"qty":90386.0},{"kode":"08TND0.25X6","nama":"TRIMDEK NEODECK SILVER 0.25MMX75CMX6M","revenue":5374088523.0,"qty":41603.0},{"kode":"30KBLS325100","nama":"KABEL SUPREME NYM 3X2.5 MM2 (RE) 100M","revenue":4653507895.0,"qty":2483.0},{"kode":"16BU10","nama":"BATA RINGAN UTOMO 60CM X 20CM X 10CM","revenue":4592956194.0,"qty":6087.219999999999}],"customers":[{"kode":"210.000914","nama":"DIVA, TK","revenue":2655268150.0},{"kode":"700.000096","nama":"PT. BRUDER KONSTRUKSI NUSANTAR","revenue":2539986285.0},{"kode":"110.002540","nama":"SURYA PRISMA ELEKTRINDO, CV","revenue":2524374716.0},{"kode":"211.000174","nama":"MILA KARYA MANDIRI, CV","revenue":1721022841.0},{"kode":"110.000588","nama":"PUTRA LESTARI, UD","revenue":1658904599.0},{"kode":"210.000989","nama":"KUTA LISTRIK, TK","revenue":1575056223.0},{"kode":"210.000863","nama":"RINJANI ELEKTRIK, UD","revenue":1537787810.0},{"kode":"210.000811","nama":"LOMBOK KARUNIA UTAMA, PT","revenue":1449362318.0},{"kode":"620.000008","nama":"MINI DEPO INDONESIA, PT","revenue":1174502310.0},{"kode":"230.000217","nama":"LABALONG SEJAHTERA, CV","revenue":1090348776.0},{"kode":"150.000552","nama":"SATRIA BUANA PERKASA, CV","revenue":1077829140.0},{"kode":"160.000136","nama":"KEMBAR BANGUNAN, UD","revenue":1054323897.0},{"kode":"420.001034","nama":"UD. CAHAYA, UD","revenue":1053118949.0},{"kode":"110.002436","nama":"SURYA, TK","revenue":979701430.0},{"kode":"110.002366","nama":"ECOLIT KONTRAKTOR BALI, PT","revenue":958894200.0},{"kode":"210.000287","nama":"SRI JAYA BANGUNAN TK, TK","revenue":953988766.0},{"kode":"110.001322","nama":"CAHAYA PUTRI, UD","revenue":881262364.0},{"kode":"420.000764","nama":"KLASIK PROMETALINDO, CV","revenue":864864700.0},{"kode":"310.000480","nama":"MITRA BANGUNAN, CV","revenue":840030177.0},{"kode":"220.000093","nama":"SAHABAT, TK","revenue":820228675.0}],"pareto":[{"pctCust":0.0,"pctRev":1.0},{"pctCust":0.1,"pctRev":2.0},{"pctCust":0.1,"pctRev":3.0},{"pctCust":0.1,"pctRev":3.6},{"pctCust":0.1,"pctRev":4.3},{"pctCust":0.2,"pctRev":4.9},{"pctCust":0.2,"pctRev":5.5},{"pctCust":0.2,"pctRev":6.0},{"pctCust":0.2,"pctRev":6.5},{"pctCust":0.3,"pctRev":6.9},{"pctCust":0.3,"pctRev":7.3},{"pctCust":0.3,"pctRev":7.7},{"pctCust":0.4,"pctRev":8.1},{"pctCust":0.4,"pctRev":8.5},{"pctCust":0.4,"pctRev":8.9},{"pctCust":0.4,"pctRev":9.2},{"pctCust":0.5,"pctRev":9.6},{"pctCust":0.5,"pctRev":9.9},{"pctCust":0.5,"pctRev":10.2},{"pctCust":0.6,"pctRev":10.5},{"pctCust":1.4,"pctRev":18.3},{"pctCust":2.8,"pctRev":26.4},{"pctCust":4.2,"pctRev":32.3},{"pctCust":5.6,"pctRev":37.3},{"pctCust":6.9,"pctRev":41.7},{"pctCust":8.3,"pctRev":45.6},{"pctCust":9.7,"pctRev":49.2},{"pctCust":11.1,"pctRev":52.5},{"pctCust":12.5,"pctRev":55.5},{"pctCust":13.9,"pctRev":58.2},{"pctCust":15.2,"pctRev":60.8},{"pctCust":16.6,"pctRev":63.1},{"pctCust":18.0,"pctRev":65.3},{"pctCust":19.4,"pctRev":67.4},{"pctCust":20.8,"pctRev":69.4},{"pctCust":22.1,"pctRev":71.2},{"pctCust":23.5,"pctRev":72.9},{"pctCust":24.9,"pctRev":74.5},{"pctCust":26.3,"pctRev":76.1},{"pctCust":27.7,"pctRev":77.5},{"pctCust":29.1,"pctRev":78.9},{"pctCust":30.4,"pctRev":80.2},{"pctCust":31.8,"pctRev":81.4},{"pctCust":33.2,"pctRev":82.6},{"pctCust":34.6,"pctRev":83.7},{"pctCust":36.0,"pctRev":84.7},{"pctCust":37.4,"pctRev":85.7},{"pctCust":38.7,"pctRev":86.6},{"pctCust":40.1,"pctRev":87.4},{"pctCust":41.5,"pctRev":88.3},{"pctCust":42.9,"pctRev":89.0},{"pctCust":44.3,"pctRev":89.8},{"pctCust":45.6,"pctRev":90.4},{"pctCust":47.0,"pctRev":91.1},{"pctCust":48.4,"pctRev":91.7},{"pctCust":49.8,"pctRev":92.3},{"pctCust":51.2,"pctRev":92.9},{"pctCust":52.6,"pctRev":93.4},{"pctCust":53.9,"pctRev":93.9},{"pctCust":55.3,"pctRev":94.4},{"pctCust":56.7,"pctRev":94.8},{"pctCust":58.1,"pctRev":95.2},{"pctCust":59.5,"pctRev":95.6},{"pctCust":60.9,"pctRev":96.0},{"pctCust":62.2,"pctRev":96.4},{"pctCust":63.6,"pctRev":96.7},{"pctCust":65.0,"pctRev":97.0},{"pctCust":66.4,"pctRev":97.3},{"pctCust":67.8,"pctRev":97.5},{"pctCust":69.1,"pctRev":97.8},{"pctCust":70.5,"pctRev":98.0},{"pctCust":71.9,"pctRev":98.2},{"pctCust":73.3,"pctRev":98.4},{"pctCust":74.7,"pctRev":98.6},{"pctCust":76.1,"pctRev":98.8},{"pctCust":77.4,"pctRev":98.9},{"pctCust":78.8,"pctRev":99.1},{"pctCust":80.2,"pctRev":99.2},{"pctCust":81.6,"pctRev":99.3},{"pctCust":83.0,"pctRev":99.4},{"pctCust":84.4,"pctRev":99.5},{"pctCust":85.7,"pctRev":99.6},{"pctCust":87.1,"pctRev":99.7},{"pctCust":88.5,"pctRev":99.7},{"pctCust":89.9,"pctRev":99.8},{"pctCust":91.3,"pctRev":99.8},{"pctCust":92.6,"pctRev":99.9},{"pctCust":94.0,"pctRev":99.9},{"pctCust":95.4,"pctRev":100.0},{"pctCust":96.8,"pctRev":100.0},{"pctCust":98.2,"pctRev":100.0},{"pctCust":99.6,"pctRev":100.0},{"pctCust":100.0,"pctRev":100.0}],"lob":{"labels":["RTL","PRJ","WHS","PRV","DIST","IND"],"values":[228124562968.77002,13517341562.189997,12570434640.5,4044230518.0,1714086370.0,468418983.0]},"stock":{"branches":{"labels":["SMD","SIN","GYR","MTR","PLR","KPG","TGT","BWI","TBN","NGR","KRS","LTM","DPS","BMA","SBW","BALI","SBY"],"items":[578,390,427,313,390,322,351,194,187,130,152,183,216,204,129,54,6],"akhir":[97420.8,42792.29000000001,36549.079999999994,32727.629999999997,31255.0,28928.0,25929.0,22450.0,21932.84,20869.87,18521.04,18178.0,16921.32,16915.160000000003,11401.410000000002,9179.270000000002,152.0],"masuk":[3.0,113.52,466.13,1550.0,0.0,0.0,560.0,0.0,240.0,92.52000000000001,888.0,2940.0,6.0,0.0,0.0,8432.640000000001,0.0],"keluar":[805.0,318.0,1084.0,2480.0,552.0,310.0,820.0,48.0,982.0,578.0,129.0,2403.0,164.0,321.0,33.0,1129.1599999999999,0.0]},"items":[{"item":"20DJ113.3X180","nama":"ASBES DJABES 11 GELOMBANG KECIL 3.3MMX18","akhir":31435.0,"masuk":0.0,"keluar":1375.0},{"item":"10WPPAW050","nama":"PIPA PUTIH PVC+ WAVIN AW 1/2\"","akhir":24150.0,"masuk":0.0,"keluar":300.0},{"item":"02GRCB3.5X120","nama":"GRC CILUK BOARD 3.5MMX1200X2400 SE","akhir":18085.0,"masuk":3500.0,"keluar":2259.0},{"item":"28GSY9120240","nama":"GYPSUM BOARD YOSHINO 9X1200X2400MM","akhir":17390.0,"masuk":0.0,"keluar":342.0},{"item":"10MPCCDT20/PCS","nama":"FITTING COUPLER CONDUIT PIPAMAS 20MM","akhir":16123.0,"masuk":0.0,"keluar":0.0},{"item":"10MPSCPC20/PC","nama":"FITTING SADDLE CLIP PUTIH CONDUIT PIPAMA","akhir":12552.0,"masuk":0.0,"keluar":0.0},{"item":"05SGAB914","nama":"SENG CAP GAJAH ASIA GEL. BESAR 0.2X914X1","akhir":12255.0,"masuk":1000.0,"keluar":1370.0},{"item":"02GRC4X120","nama":"GRC BOARD 4MMX1200X2400 SE","akhir":10797.0,"masuk":0.0,"keluar":84.0},{"item":"02GRCRP823","nama":"GRC ROSEWOOD PLANK 8MMX200X3000","akhir":8727.0,"masuk":0.0,"keluar":50.0},{"item":"15CCAC75X0.75","nama":"AURI TRUSS C75.75 MOTIF - 6M","akhir":6996.0,"masuk":600.0,"keluar":242.0},{"item":"02GRCB4X120","nama":"GRC CILUK BOARD 4MMX1200X2400 SE","akhir":6818.0,"masuk":0.0,"keluar":0.0},{"item":"10MPSCBC20/PC","nama":"FITTING SADDLE CLIP BIRU CONDUIT PIPAMAS","akhir":6241.0,"masuk":0.0,"keluar":0.0},{"item":"15RGA30.40X6","nama":"AURI RENG 30.40 - 6M","akhir":6186.0,"masuk":500.0,"keluar":34.0},{"item":"05SGGB914","nama":"SENG CAP GAJAH GADING GEL. BESAR 0.2X914","akhir":6177.0,"masuk":0.0,"keluar":0.0},{"item":"10MPAW050","nama":"PIPA MAS PUTIH AW 1/2'X4M","akhir":5608.0,"masuk":0.0,"keluar":30.0},{"item":"05SGAK914","nama":"SENG CAP GAJAH ASIA GEL. KECIL 0.2X914X1","akhir":5521.0,"masuk":0.0,"keluar":170.0},{"item":"06HGA0.25X164","nama":"AURI HOLLOW GALVALUM 0.25 2X4 - 4M","akhir":5372.0,"masuk":1000.0,"keluar":40.0},{"item":"04BA20","nama":"KAWAT BENDRAT BWG-21 @20KG","akhir":5001.0,"masuk":0.0,"keluar":45.0},{"item":"15WAA025X3M","nama":"AURI WALL ANGLE 2X2 - 3M","akhir":4569.0,"masuk":500.0,"keluar":90.0},{"item":"10WPPAW075","nama":"PIPA PUTIH PVC+ WAVIN AW 3/4\"","akhir":4269.0,"masuk":0.0,"keluar":0.0}],"vs_sales":{"summary":{"WATCH":79,"OK":266,"OVERSTOCK":298,"LOW_STOCK":80,"NO_MOVEMENT":658},"items":[{"item":"20DJ113.3X180","nama":"ASBES DJABES 11 GELOMBANG KECIL 3.3MMX1800X800","stock":31435.0,"velocity":35348.0,"mos":0.9,"status":"LOW_STOCK","sales_rev":15622160382.0},{"item":"16BL10","nama":"BATA RINGAN BLESSCON 60CM X 20CM X10CM","stock":127.15,"velocity":449.3,"mos":0.3,"status":"LOW_STOCK","sales_rev":7770851787.0},{"item":"16BF10","nama":"BATA RINGAN FOCON 60CM X 20CM X 10CM","stock":155.67,"velocity":523.8,"mos":0.3,"status":"LOW_STOCK","sales_rev":5959998040.0},{"item":"08TND0.25X6","nama":"AURI SPANDEK SILVER 750/0.25 B / C - 6M","stock":1957.0,"velocity":2782.0,"mos":0.7,"status":"LOW_STOCK","sales_rev":5374088523.0},{"item":"16BU10","nama":"BATA RINGAN UTOMO 60CM X 20CM X 10CM","stock":64.50999999999999,"velocity":551.4,"mos":0.1,"status":"LOW_STOCK","sales_rev":4592956194.0},{"item":"08TADL0.30X6","nama":"AURI DECK LITE SILVER 0.30 X 750 - 6M","stock":503.0,"velocity":890.0,"mos":0.6,"status":"LOW_STOCK","sales_rev":2678560113.0},{"item":"08TND0.25X4","nama":"AURI SPANDEK SILVER 750/0.25 B / C - 4M","stock":1365.0,"velocity":1618.0,"mos":0.8,"status":"LOW_STOCK","sales_rev":2254980830.0},{"item":"02GRCRP824","nama":"GRC ROSEWOOD PLANK 8MMX200X4000","stock":695.0,"velocity":3501.2,"mos":0.2,"status":"LOW_STOCK","sales_rev":2125408748.0},{"item":"08TND0.30X6","nama":"AURI SPANDEK SILVER 750/0.30 B - 6M","stock":410.0,"velocity":587.8,"mos":0.7,"status":"LOW_STOCK","sales_rev":1481498937.0},{"item":"08TND0.25X5","nama":"AURI SPANDEK SILVER 750/0.25 B / C - 5M","stock":876.0,"velocity":880.8,"mos":1.0,"status":"LOW_STOCK","sales_rev":1473192881.0},{"item":"02GRCTP8","nama":"GRC TIMBERPLANK 8MMX200X4000","stock":1242.0,"velocity":1514.2,"mos":0.8,"status":"LOW_STOCK","sales_rev":1176308510.0},{"item":"08TADL0.25X6","nama":"AURI DECK LITE SILVER 0.25 X 750 - 6M","stock":355.0,"velocity":595.0,"mos":0.6,"status":"LOW_STOCK","sales_rev":1046916880.0},{"item":"08SND0.25X4","nama":"AURI SPANDEK SILVER KR 9/0.25 B / C - 4M","stock":370.0,"velocity":847.5,"mos":0.4,"status":"LOW_STOCK","sales_rev":1027629133.0},{"item":"02GRC10X122","nama":"GRC BOARD 10MMX1220X2440 SE","stock":11.0,"velocity":153.0,"mos":0.1,"status":"LOW_STOCK","sales_rev":986268288.5},{"item":"08TADLM0.30X6","nama":"AURI DECK LITE PPGL MAROON 0.30 X 750 - 6M","stock":2.0,"velocity":487.5,"mos":0.0,"status":"LOW_STOCK","sales_rev":940229999.0},{"item":"22KSFRTAR","nama":"KERETA SORONG FORTUNA SDH RAKIT","stock":30.0,"velocity":216.0,"mos":0.1,"status":"LOW_STOCK","sales_rev":820530325.0},{"item":"08TND0.30X5","nama":"AURI SPANDEK SILVER 750/0.30 B - 5M","stock":257.0,"velocity":284.0,"mos":0.9,"status":"LOW_STOCK","sales_rev":751980054.0},{"item":"08TND0.30X4","nama":"AURI SPANDEK SILVER 750/0.30 B - 4M","stock":111.0,"velocity":444.0,"mos":0.2,"status":"LOW_STOCK","sales_rev":711608369.0},{"item":"15CCAC75X0.55","nama":"AURI TRUSS C75.55 MOTIF - 6M","stock":275.0,"velocity":631.8,"mos":0.4,"status":"LOW_STOCK","sales_rev":698553220.0},{"item":"03PC300","nama":"PAKU GOLD COIN 3\" X 10 @30KG (7CM)","stock":80.0,"velocity":97.0,"mos":0.8,"status":"LOW_STOCK","sales_rev":622942240.0},{"item":"08TADL0.25X5","nama":"AURI DECK LITE SILVER 0.25 X 750 - 5M","stock":3.0,"velocity":349.5,"mos":0.0,"status":"LOW_STOCK","sales_rev":618855176.0},{"item":"28GSYMR121224","nama":"GYPSUM BOARD YOSHINO MOISTURE RST 12X1200X2400MM","stock":35.0,"velocity":63.8,"mos":0.5,"status":"LOW_STOCK","sales_rev":596581000.0},{"item":"08TADL0.25X4","nama":"AURI DECK LITE SILVER 0.25 X 750 - 4M","stock":48.0,"velocity":393.0,"mos":0.1,"status":"LOW_STOCK","sales_rev":554381870.0},{"item":"22KSKIUSR","nama":"KERETA SORONG KIU KIU SDH RAKIT","stock":148.0,"velocity":260.8,"mos":0.6,"status":"LOW_STOCK","sales_rev":523595800.0},{"item":"03PC200","nama":"PAKU GOLD COIN 2\" X 12 @30KG (5CM)","stock":36.0,"velocity":109.2,"mos":0.3,"status":"LOW_STOCK","sales_rev":457929457.0},{"item":"08TADLM0.30X5","nama":"AURI DECK LITE PPGL MAROON 0.30 X 750 - 5M","stock":20.0,"velocity":150.5,"mos":0.1,"status":"LOW_STOCK","sales_rev":421900392.0},{"item":"05SGMB914","nama":"SENG CAP GAJAMADA GEL. BESAR 0.2X914X1829","stock":3.0,"velocity":87.2,"mos":0.0,"status":"LOW_STOCK","sales_rev":417227120.0},{"item":"08TADL0.25X7","nama":"AURI DECK LITE SILVER 0.25 X 750 - 7M","stock":7.0,"velocity":173.0,"mos":0.0,"status":"LOW_STOCK","sales_rev":409783949.0},{"item":"03PC400","nama":"PAKU GOLD COIN 4\" X 8 @30KG (10CM)","stock":55.0,"velocity":78.8,"mos":0.7,"status":"LOW_STOCK","sales_rev":395479814.0},{"item":"15CCAC75X0.70","nama":"AURI TRUSS C75.70 MOTIF - 6M","stock":436.0,"velocity":512.2,"mos":0.9,"status":"LOW_STOCK","sales_rev":364268535.0},{"item":"03PPB300","nama":"PAKU POLAR BEAR 7CM (3\" @30KG)","stock":71.0,"velocity":80.0,"mos":0.9,"status":"LOW_STOCK","sales_rev":339733666.0},{"item":"15RGA28.40X6","nama":"AURI RENG 28.40 - 6M","stock":450.0,"velocity":666.2,"mos":0.7,"status":"LOW_STOCK","sales_rev":336943624.0},{"item":"28GSY12120240","nama":"GYPSUM BOARD YOSHINO 12X1200X2400MM","stock":111.0,"velocity":375.0,"mos":0.3,"status":"LOW_STOCK","sales_rev":330038200.0},{"item":"08TADL0.30X8","nama":"AURI DECK LITE SILVER 0.30 X 750 - 8M","stock":2.0,"velocity":63.5,"mos":0.0,"status":"LOW_STOCK","sales_rev":281586800.0},{"item":"10MPD300","nama":"PIPA MAS PUTIH D 3''X4M","stock":178.0,"velocity":278.8,"mos":0.6,"status":"LOW_STOCK","sales_rev":258126041.0},{"item":"08TADL0.25X8","nama":"AURI DECK LITE SILVER 0.25 X 750 - 8M","stock":2.0,"velocity":68.5,"mos":0.0,"status":"LOW_STOCK","sales_rev":236422528.0},{"item":"05TSG0.258050","nama":"AURI ROLLSHEET 80 X 0.25 - 50M","stock":9.0,"velocity":17.2,"mos":0.5,"status":"LOW_STOCK","sales_rev":228918474.0},{"item":"15ICC75MX0.70","nama":"AURI TRUSS C75.70 M - 6M","stock":27.0,"velocity":285.0,"mos":0.1,"status":"LOW_STOCK","sales_rev":218041268.0},{"item":"33ECPM82040","nama":"ECO PLANK MOTIF 8MMX200X4050","stock":30.0,"velocity":372.0,"mos":0.1,"status":"LOW_STOCK","sales_rev":145250883.0},{"item":"30KBLK225100","nama":"KABEL KABELINDO NYM 2X2.5 MM2 (RE) 100M","stock":0.0,"velocity":3.8,"mos":0.0,"status":"LOW_STOCK","sales_rev":140770233.0},{"item":"19LMFPK100G","nama":"LEM FOX PVCPLAS SUPER KALENG 100G (48)","stock":6.0,"velocity":14.2,"mos":0.4,"status":"LOW_STOCK","sales_rev":107341660.0},{"item":"19LMRPKB700/PCS","nama":"LEM RAJAWALI PVAC KANTONG BESAR 700G - PCS","stock":61.0,"velocity":811.2,"mos":0.1,"status":"LOW_STOCK","sales_rev":102450806.0},{"item":"16BF7.5","nama":"BATA RINGAN FOCON 60CM X 20CM X 7.5CM","stock":16.37,"velocity":33.0,"mos":0.5,"status":"LOW_STOCK","sales_rev":100878000.0},{"item":"01TM11.5","nama":"TRIPLEK SEMI MERANTI/PALEM 11.5MM","stock":99.0,"velocity":179.8,"mos":0.6,"status":"LOW_STOCK","sales_rev":100022000.0},{"item":"07BPM10","nama":"BESI BETON POLOS MARKING 10MM-12M","stock":4.0,"velocity":250.0,"mos":0.0,"status":"LOW_STOCK","sales_rev":86713451.0},{"item":"02GRCLTS3","nama":"GRC LOTUS 3MMX1000X1000","stock":264.0,"velocity":294.0,"mos":0.9,"status":"LOW_STOCK","sales_rev":86372960.0},{"item":"03PC350","nama":"PAKU GOLD COIN 3 1/2\" @30KG (9CM)","stock":9.0,"velocity":17.2,"mos":0.5,"status":"LOW_STOCK","sales_rev":72139245.0},{"item":"07BPM12","nama":"BESI BETON POLOS MARKING 12MM-12M","stock":6.0,"velocity":125.8,"mos":0.0,"status":"LOW_STOCK","sales_rev":70300427.0},{"item":"24GMPH0.25","nama":"AURI ROOF SAND COATED (BLACK)","stock":13.0,"velocity":25.0,"mos":0.5,"status":"LOW_STOCK","sales_rev":51118200.0},{"item":"07BPM8","nama":"BESI BETON POLOS MARKING 8MM-12M","stock":4.0,"velocity":250.0,"mos":0.0,"status":"LOW_STOCK","sales_rev":46827000.0}]}},"procurement":{"pipeline":{"labels":["Estimasi Supply","Disetujui Manager","Perjalanan","Sudah Diterima"],"values":[643,412,112,4002]},"regions":{"labels":["BALI","NTB","KALTIM","NTT","DISL","SBY","#N/A"],"count":[1964,2037,896,219,52,1,40],"nilai":[76964695748.76001,25960903991.680004,17570508709.560005,6887143519.460002,660223783.94,53125000.0,0.0],"berat":[10581619.36,2683758.7699999996,2561953.55,700151.8500000001,287443.46,25000.0,0]},"suppliers":{"labels":["PT. Auri Steel Metalindo","Kawi Jaya","Sibalec","Sinar Mas","Cipta Papan","UD. Jaya Surabaya","CV. PELITA ANUGRAH ABADI","PT. Ronadamar Sejahtera","Djabes","PT. SUMITOMO FORESTRY IND"],"count":[1638,351,681,623,263,28,26,75,89,82],"nilai":[22524350621.740005,15218158000.0,12814594555.0,11215828000.0,10466211800.0,9969405000.0,9255895000.0,7379566884.71,6569702409.0,3448922570.5]},"categories":{"labels":["Triplek","Paku","Kabel","Trimdek/Spandek","GRC","Lem Fox","Asbes","Bata Ringan","Pipa","Canal C"],"count":[57,784,871,785,264,169,84,232,420,257],"nilai":[19289830000.0,18990936750.15,16640937108.5,16062979438.75,10466249800.0,8643853486.340002,6094586165.0,5943446871.240001,4666220955.979998,3602466250.0]}}};
 
-// Shared config
-Chart.defaults.color = '#8b8fa3';
-Chart.defaults.borderColor = '#2d3140';
-Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-Chart.defaults.font.size = 11;
-
-const fmt = (v) => {
-  if (v >= 1e12) return 'Rp ' + (v/1e12).toFixed(1) + 'T';
-  if (v >= 1e9) return 'Rp ' + (v/1e9).toFixed(1) + 'B';
-  if (v >= 1e6) return 'Rp ' + (v/1e6).toFixed(0) + 'M';
-  return 'Rp ' + v.toLocaleString('id');
+// Utilities
+const fmtRp = (n) => {
+  if(n >= 1e12) return 'Rp ' + (n/1e12).toFixed(1) + ' T';
+  if(n >= 1e9) return 'Rp ' + (n/1e9).toFixed(1) + ' B';
+  if(n >= 1e6) return 'Rp ' + (n/1e6).toFixed(1) + ' M';
+  if(n >= 1e3) return 'Rp ' + (n/1e3).toFixed(1) + ' K';
+  return 'Rp ' + n.toFixed(0);
 };
-const fmtB = (v) => (v/1e9).toFixed(1);
-const pct = (v) => v >= 0 ? '▲' + v.toFixed(1) + '%' : '▼' + Math.abs(v).toFixed(1) + '%';
+const fmtNum = (n) => n.toLocaleString('id-ID');
+const fmtRpShort = (n) => {
+  if(n >= 1e12) return (n/1e12).toFixed(1) + 'T';
+  if(n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+  if(n >= 1e6) return (n/1e6).toFixed(0) + 'M';
+  return n.toLocaleString('id-ID');
+};
 
-// 1. Monthly Trend
-new Chart(document.getElementById('chartMonthly'), {
-  type: 'bar',
-  data: {
-    labels: D.monthly.labels,
-    datasets: [
-      { label: '2025', data: D.monthly.y2025.map(v => v/1e9), backgroundColor: '#6366f1', borderRadius: 4, barPercentage: 0.7 },
-      { label: '2026', data: D.monthly.y2026.map(v => v/1e9), backgroundColor: '#22c55e', borderRadius: 4, barPercentage: 0.7 }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (c) => c.dataset.label + ': Rp ' + c.raw.toFixed(1) + 'B' } } },
-    scales: { y: { ticks: { callback: v => 'Rp ' + v + 'B' }, grid: { color: '#2d3140' } }, x: { grid: { display: false } } }
-  }
+// Chart defaults
+Chart.defaults.color = '#888';
+Chart.defaults.borderColor = '#2a2d3a';
+Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+Chart.defaults.plugins.legend.labels.padding = 12;
+
+const COLORS = ['#6c5ce7','#00b894','#fdcb6e','#e17055','#74b9ff','#a29bfe','#55efc4','#fab1a0','#81ecec','#ffeaa7','#dfe6e9','#fd79a8','#0984e3','#00cec9','#636e72','#2d3436','#e84393','#00b894','#fdcb6e','#6c5ce7'];
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+  });
 });
 
-// 2. YoY Comparison
-const yoyData = D.yoy.filter(m => m.v2026 > 0);
-new Chart(document.getElementById('chartYoY'), {
-  type: 'bar',
-  data: {
-    labels: yoyData.map(m => m.month),
-    datasets: [
-      { label: '2025', data: yoyData.map(m => m.v2025/1e9), backgroundColor: '#6366f1', borderRadius: 4, barPercentage: 0.6 },
-      { label: '2026', data: yoyData.map(m => m.v2026/1e9), backgroundColor: '#22c55e', borderRadius: 4, barPercentage: 0.6 }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'top' },
-      tooltip: {
-        callbacks: {
-          afterLabel: (c) => {
-            const m = yoyData[c.dataIndex];
-            return m.growth !== null ? 'YoY: ' + pct(m.growth) : '';
-          }
-        }
-      }
+// ============ TAB 1: SALES ============
+(function(){
+  const kpis = D.kpis;
+  const ann = kpis.rev2026_ann;
+  const el = document.getElementById('sales-kpis');
+  el.innerHTML = [
+    {l:'Revenue 2025',v:fmtRp(kpis.rev2025),c:''},
+    {l:'Revenue 2026 YTD',v:fmtRp(kpis.rev2026),c:'green'},
+    {l:'Annualized 2026',v:fmtRp(ann),c:'purple'},
+    {l:'Growth YoY',v:'+'+kpis.growth+'%',c:'green'},
+    {l:'Pelanggan',v:fmtNum(kpis.customers),c:'blue'},
+    {l:'SKU Aktif',v:fmtNum(kpis.skus),c:'orange'},
+    {l:'Cabang',v:kpis.branches,c:''},
+  ].map(k=>'<div class="kpi"><div class="label">'+k.l+'</div><div class="value '+k.c+'">'+k.v+'</div></div>').join('');
+
+  // Monthly chart
+  new Chart(document.getElementById('chartMonthly'),{
+    type:'line',
+    data:{
+      labels:D.monthly.labels,
+      datasets:[
+        {label:'2025',data:D.monthly.y2025,borderColor:'#636e72',backgroundColor:'#636e7233',fill:true,tension:.3,pointRadius:3},
+        {label:'2026',data:D.monthly.y2026,borderColor:'#6c5ce7',backgroundColor:'#6c5ce733',fill:true,tension:.3,pointRadius:3}
+      ]
     },
-    scales: { y: { ticks: { callback: v => 'Rp ' + v + 'B' }, grid: { color: '#2d3140' } }, x: { grid: { display: false } } }
-  }
-});
-
-// 3. Branch Performance (top 15)
-const bN = 15;
-const bColors = D.branches.rev26.slice(0, bN).map((v, i) => v > 0 ? '#6366f1' : '#3b3f54');
-new Chart(document.getElementById('chartBranch'), {
-  type: 'bar',
-  data: {
-    labels: D.branches.labels.slice(0, bN),
-    datasets: [{ label: '2025', data: D.branches.rev25.slice(0, bN).map(v => v/1e9), backgroundColor: '#6366f1', borderRadius: 4 }]
-  },
-  options: {
-    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => 'Rp ' + c.raw.toFixed(2) + 'B' } } },
-    scales: { x: { ticks: { callback: v => v + 'B' }, grid: { color: '#2d3140' } }, y: { grid: { display: false } } }
-  }
-});
-
-// 4. Product Groups (doughnut)
-const pColors = ['#6366f1','#22c55e','#f97316','#3b82f6','#eab308','#ef4444','#a78bfa','#14b8a6','#f472b6','#84cc16','#06b6d4','#fb923c'];
-new Chart(document.getElementById('chartProduct'), {
-  type: 'doughnut',
-  data: {
-    labels: D.products.labels,
-    datasets: [{ data: D.products.values.map(v => v/1e9), backgroundColor: pColors, borderWidth: 0 }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false, cutout: '55%',
-    plugins: {
-      legend: { position: 'right', labels: { boxWidth: 12, padding: 8, font: { size: 10 } } },
-      tooltip: { callbacks: { label: (c) => c.label + ': Rp ' + c.raw.toFixed(1) + 'B' } }
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      scales:{y:{ticks:{callback:v=>fmtRpShort(v)}}},
+      plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtRp(ctx.parsed.y)}}}
     }
-  }
-});
+  });
 
-// 5. LOB
-new Chart(document.getElementById('chartLOB'), {
-  type: 'doughnut',
-  data: { labels: D.lob.labels, datasets: [{ data: D.lob.values.map(v => v/1e9), backgroundColor: ['#6366f1','#22c55e','#f97316','#3b82f6','#eab308'], borderWidth: 0 }] },
-  options: { responsive: true, maintainAspectRatio: false, cutout: '50%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { callbacks: { label: (c) => c.label + ': Rp ' + c.raw.toFixed(1) + 'B' } } } }
-});
+  // Branches chart (top 15)
+  const bLabels = D.branches.labels.slice(0,15);
+  const bR25 = D.branches.rev25.slice(0,15);
+  const bR26 = D.branches.rev26.slice(0,15);
+  new Chart(document.getElementById('chartBranches'),{
+    type:'bar',
+    data:{
+      labels:bLabels,
+      datasets:[
+        {label:'2025',data:bR25,backgroundColor:'#636e72'},
+        {label:'2026 YTD',data:bR26,backgroundColor:'#6c5ce7'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      scales:{x:{ticks:{callback:v=>fmtRpShort(v)}}},
+      plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtRp(ctx.parsed.x)}}}
+    }
+  });
 
-// 6. Delivery
-new Chart(document.getElementById('chartDelivery'), {
-  type: 'doughnut',
-  data: { labels: D.delivery.labels, datasets: [{ data: D.delivery.values.map(v => v/1e9), backgroundColor: ['#3b82f6','#f97316'], borderWidth: 0 }] },
-  options: { responsive: true, maintainAspectRatio: false, cutout: '50%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { callbacks: { label: (c) => c.label + ': Rp ' + c.raw.toFixed(1) + 'B' } } } }
-});
+  // Pareto chart
+  new Chart(document.getElementById('chartPareto'),{
+    type:'line',
+    data:{
+      labels:D.pareto.map(p=>p.pctCust+'%'),
+      datasets:[
+        {label:'Cumulative Revenue %',data:D.pareto.map(p=>p.pctRev),borderColor:'#6c5ce7',backgroundColor:'#6c5ce722',fill:true,tension:.2,pointRadius:2,yAxisID:'y'},
+        {label:'Pareto Line (80%)',data:D.pareto.map(()=>80),borderColor:'#e1705566',borderDash:[5,5],pointRadius:0,yAxisID:'y'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      scales:{
+        x:{title:{display:true,text:'% Customers (kumulatif)'}},
+        y:{min:0,max:100,title:{display:true,text:'% Revenue (kumulatif)'}}
+      }
+    }
+  });
 
-// 7. Pareto
-new Chart(document.getElementById('chartPareto'), {
-  type: 'line',
-  data: {
-    labels: D.pareto.map(p => p.pctCust + '%'),
-    datasets: [
-      { label: '% Kumulatif Revenue', data: D.pareto.map(p => p.pctRev), borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.3, pointRadius: 2 },
-      { label: 'Garis 80%', data: D.pareto.map(() => 80), borderColor: '#ef4444', borderDash: [5,5], pointRadius: 0 }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { x: { display: true, ticks: { maxTicksLimit: 6 }, title: { display: true, text: '% Customer' } }, y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#2d3140' } } }
-  }
-});
+  // Products doughnut
+  new Chart(document.getElementById('chartProducts'),{
+    type:'doughnut',
+    data:{
+      labels:D.products.labels,
+      datasets:[{data:D.products.values,backgroundColor:COLORS.slice(0,D.products.labels.length)}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmtRp(ctx.raw)}}}
+    }
+  });
 
-// 8. Top Items Table
-const totalRev = D.kpis.rev2025 + D.kpis.rev2026;
-const tbodyI = document.getElementById('tableItems');
-D.items.forEach((item, i) => {
-  const share = (item.revenue / totalRev * 100).toFixed(1);
-  tbodyI.innerHTML += '<tr><td>' + (i+1) + '</td><td class="mono">' + item.kode + '</td><td>' + item.nama + '</td><td class="right">' + Math.round(item.qty).toLocaleString('id') + '</td><td class="right">' + fmt(item.revenue) + '</td><td><div style="display:flex;align-items:center;gap:6px">' + share + '%<div class="pct-bar"><div class="bar-bg"><div class="bar-fill" style="width:' + share + '%;background:var(--accent)"></div></div></div></div></td></tr>';
-});
+  // Top items table
+  const totalItemRev = D.items.reduce((s,i)=>s+i.revenue,0);
+  const tbody1 = document.querySelector('#tableItems tbody');
+  D.items.forEach((it,idx)=>{
+    const pct = (it.revenue/totalItemRev*100).toFixed(1);
+    tbody1.innerHTML += '<tr><td>'+(idx+1)+'</td><td>'+it.kode+'</td><td>'+it.nama+'</td><td class="text-right">'+fmtNum(it.qty)+'</td><td class="text-right">'+fmtRp(it.revenue)+'</td><td><div class="progress-bar"><div class="fill" style="width:'+pct+'%;background:#6c5ce7"></div></div><span style="font-size:10px;color:#888">'+pct+'%</span></td></tr>';
+  });
 
-// 9. Top Customers Table
-const tbodyC = document.getElementById('tableCustomers');
-D.customers.forEach((c, i) => {
-  const share = (c.revenue / totalRev * 100).toFixed(1);
-  tbodyC.innerHTML += '<tr><td>' + (i+1) + '</td><td class="mono">' + c.kode + '</td><td>' + c.nama + '</td><td class="right">' + fmt(c.revenue) + '</td><td><div style="display:flex;align-items:center;gap:6px">' + share + '%<div class="pct-bar"><div class="bar-bg"><div class="bar-fill" style="width:' + Math.min(share * 3, 100) + '%;background:var(--green)"></div></div></div></div></td></tr>';
-});
+  // Customers table
+  const tbody2 = document.querySelector('#tableCustomers tbody');
+  D.customers.forEach((c,idx)=>{
+    tbody2.innerHTML += '<tr><td>'+(idx+1)+'</td><td>'+c.kode+'</td><td>'+c.nama+'</td><td class="text-right">'+fmtRp(c.revenue)+'</td></tr>';
+  });
 
-// 10. Branch Detail Table
-const tbodyB = document.getElementById('tableBranch');
-const months26 = D.kpis.n_months_2026;
-D.branches.labels.forEach((b, i) => {
-  const r25 = D.branches.rev25[i];
-  const r26 = D.branches.rev26[i];
-  const r26a = r26 / months26 * 12;
-  const g = r25 > 0 ? ((r26a / r25 - 1) * 100) : null;
-  const gStr = g !== null ? pct(g) : '-';
-  const gClass = g !== null ? (g >= 0 ? 'kpi-green' : 'kpi-red') : '';
-  tbodyB.innerHTML += '<tr><td><strong>' + b + '</strong></td><td class="right">' + fmt(r25) + '</td><td class="right">' + fmt(r26) + '</td><td class="right">' + fmt(r26a) + '</td><td class="right ' + gClass + '">' + gStr + '</td><td>' + (g !== null ? '<span class="badge ' + (g >= 0 ? 'badge-green' : 'badge-red') + '">' + (g >= 0 ? '▲' : '▼') + '</span>' : '-') + '</td></tr>';
-});
+  // LOB chart
+  new Chart(document.getElementById('chartLOB'),{
+    type:'doughnut',
+    data:{
+      labels:D.lob.labels,
+      datasets:[{data:D.lob.values,backgroundColor:['#6c5ce7','#00b894','#fdcb6e','#e17055','#74b9ff','#a29bfe']}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmtRp(ctx.raw)}}}
+    }
+  });
+})();
+
+// ============ TAB 2: STOCK ============
+(function(){
+  const s = D.stock;
+  const summary = s.vs_sales.summary;
+  const totalItems = Object.values(summary).reduce((a,b)=>a+b,0);
+  const el = document.getElementById('stock-kpis');
+  el.innerHTML = [
+    {l:'Total Item Stok',v:fmtNum(D.kpis.stock_items),c:'blue'},
+    {l:'SKU Unik',v:fmtNum(D.kpis.stock_unique),c:'purple'},
+    {l:'Cabang dg Stok',v:s.branches.labels.length,c:''},
+    {l:'NO_MOVEMENT',v:summary.NO_MOVEMENT,c:'red'},
+    {l:'OVERSTOCK',v:summary.OVERSTOCK,c:'orange'},
+    {l:'LOW_STOCK',v:summary.LOW_STOCK,c:'red'},
+    {l:'WATCH',v:summary.WATCH,c:'orange'},
+    {l:'OK',v:summary.OK,c:'green'},
+  ].map(k=>'<div class="kpi"><div class="label">'+k.l+'</div><div class="value '+k.c+'">'+k.v+'</div></div>').join('');
+
+  // Stock per branch
+  new Chart(document.getElementById('chartStockBranch'),{
+    type:'bar',
+    data:{
+      labels:s.branches.labels,
+      datasets:[
+        {label:'Stok Akhir',data:s.branches.akhir,backgroundColor:'#6c5ce7'},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      scales:{y:{ticks:{callback:v=>fmtRpShort(v)}}},
+      plugins:{tooltip:{callbacks:{label:ctx=>'Stok: '+fmtNum(ctx.parsed.y)}}}
+    }
+  });
+
+  // Status doughnut
+  new Chart(document.getElementById('chartStockStatus'),{
+    type:'doughnut',
+    data:{
+      labels:['NO_MOVEMENT','OVERSTOCK','LOW_STOCK','WATCH','OK'],
+      datasets:[{data:[summary.NO_MOVEMENT,summary.OVERSTOCK,summary.LOW_STOCK,summary.WATCH,summary.OK],backgroundColor:['#636e72','#e17055','#d63031','#fdcb6e','#00b894']}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{tooltip:{callbacks:{label:ctx=>ctx.label+': '+ctx.raw+' item ('+(ctx.raw/totalItems*100).toFixed(1)+'%)'}}}
+    }
+  });
+
+  // Stock items table
+  const tbody3 = document.querySelector('#tableStockItems tbody');
+  s.items.forEach((it,idx)=>{
+    tbody3.innerHTML += '<tr><td>'+(idx+1)+'</td><td>'+it.item+'</td><td>'+it.nama+'</td><td class="text-right">'+fmtNum(it.akhir)+'</td><td class="text-right">'+fmtNum(it.masuk)+'</td><td class="text-right">'+fmtNum(it.keluar)+'</td></tr>';
+  });
+
+  // Stock vs Sales table
+  const tbody4 = document.querySelector('#tableStockVsSales tbody');
+  s.vs_sales.items.forEach((it,idx)=>{
+    const badgeClass = {NO_MOVEMENT:'badge-gray',OVERSTOCK:'badge-orange',LOW_STOCK:'badge-red',WATCH:'badge-orange',OK:'badge-green'}[it.status]||'badge-blue';
+    tbody4.innerHTML += '<tr><td>'+(idx+1)+'</td><td>'+it.item+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.nama+'</td><td class="text-right">'+fmtNum(it.stock)+'</td><td class="text-right">'+fmtNum(it.velocity)+'</td><td class="text-right">'+it.mos.toFixed(1)+'</td><td><span class="badge '+badgeClass+'">'+it.status+'</span></td><td class="text-right">'+fmtRp(it.sales_rev)+'</td></tr>';
+  });
+})();
+
+// ============ TAB 3: PROCUREMENT ============
+(function(){
+  const p = D.procurement;
+  const el = document.getElementById('proc-kpis');
+  el.innerHTML = [
+    {l:'Total PO',v:fmtNum(D.kpis.po_total),c:'purple'},
+    {l:'Nilai PO',v:fmtRp(D.kpis.po_nilai),c:'green'},
+    {l:'Supplier',v:D.kpis.po_suppliers,c:'blue'},
+    {l:'Wilayah',v:p.regions.labels.filter(r=>r!=='#N/A').length,c:'orange'},
+    {l:'Diterima',v:fmtNum(p.pipeline.values[3]),c:'green'},
+    {l:'Dalam Perjalanan',v:p.pipeline.values[2],c:'orange'},
+  ].map(k=>'<div class="kpi"><div class="label">'+k.l+'</div><div class="value '+k.c+'">'+k.v+'</div></div>').join('');
+
+  // Pipeline view
+  const pipeColors = ['#636e72','#fdcb6e','#74b9ff','#00b894'];
+  const pipeView = document.getElementById('pipelineView');
+  p.pipeline.labels.forEach((lbl,i)=>{
+    if(i>0) pipeView.innerHTML += '<div class="pipeline-arrow">→</div>';
+    pipeView.innerHTML += '<div class="pipeline-step" style="background:'+pipeColors[i]+'22;border:1px solid '+pipeColors[i]+'44;border-radius:8px"><div class="step-val" style="color:'+pipeColors[i]+'">'+fmtNum(p.pipeline.values[i])+'</div><div class="step-label">'+lbl+'</div></div>';
+  });
+
+  // Region spending
+  const regLabels = p.regions.labels.filter((_,i)=>p.regions.labels[i]!=='#N/A');
+  const regNilai = p.regions.nilai.filter((_,i)=>p.regions.labels[i]!=='#N/A');
+  const regColors = ['#6c5ce7','#00b894','#fdcb6e','#e17055','#74b9ff','#a29bfe'];
+  new Chart(document.getElementById('chartProcRegion'),{
+    type:'bar',
+    data:{labels:regLabels,datasets:[{label:'Nilai PO',data:regNilai,backgroundColor:regColors}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      scales:{x:{ticks:{callback:v=>fmtRpShort(v)}}},
+      plugins:{tooltip:{callbacks:{label:ctx=>fmtRp(ctx.parsed.x)}}}
+    }
+  });
+
+  // Region count
+  const regCount = p.regions.count.filter((_,i)=>p.regions.labels[i]!=='#N/A');
+  new Chart(document.getElementById('chartProcRegionCount'),{
+    type:'doughnut',
+    data:{labels:regLabels,datasets:[{data:regCount,backgroundColor:regColors}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmtNum(ctx.raw)+' PO'}}}
+    }
+  });
+
+  // Suppliers
+  new Chart(document.getElementById('chartSuppliers'),{
+    type:'bar',
+    data:{labels:p.suppliers.labels,datasets:[{label:'Nilai PO',data:p.suppliers.nilai,backgroundColor:COLORS.slice(0,10)}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      scales:{x:{ticks:{callback:v=>fmtRpShort(v)}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtRp(ctx.parsed.x)}}}
+    }
+  });
+
+  // Categories
+  new Chart(document.getElementById('chartProcCat'),{
+    type:'bar',
+    data:{labels:p.categories.labels,datasets:[{label:'Nilai PO',data:p.categories.nilai,backgroundColor:COLORS.slice(0,10)}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      scales:{y:{ticks:{callback:v=>fmtRpShort(v)}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtRp(ctx.parsed.y)}}}
+    }
+  });
+})();
+
+// ============ TAB 4: SUPPLY CHAIN ============
+(function(){
+  const s = D.stock.vs_sales.summary;
+  const p = D.procurement;
+  const totalStatus = Object.values(s).reduce((a,b)=>a+b,0);
+  const attentionItems = D.stock.vs_sales.items.filter(i=>i.status==='LOW_STOCK'||i.status==='WATCH');
+  const attentionRev = attentionItems.reduce((a,i)=>a+i.sales_rev,0);
+
+  const el = document.getElementById('supply-kpis');
+  el.innerHTML = [
+    {l:'Items Needing Attention',v:attentionItems.length,c:'red'},
+    {l:'Revenue at Risk',v:fmtRp(attentionRev),c:'orange'},
+    {l:'OK Items',v:s.OK,c:'green'},
+    {l:'Total PO Aktif',v:fmtNum(D.kpis.po_total),c:'purple'},
+    {l:'PO Diterima',v:fmtNum(p.pipeline.values[3]),c:'green'},
+    {l:'PO Dalam Perjalanan',v:p.pipeline.values[2],c:'blue'},
+  ].map(k=>'<div class="kpi"><div class="label">'+k.l+'</div><div class="value '+k.c+'">'+k.v+'</div></div>').join('');
+
+  // Status distribution
+  new Chart(document.getElementById('chartSupplyStatus'),{
+    type:'doughnut',
+    data:{
+      labels:['NO_MOVEMENT','OVERSTOCK','LOW_STOCK','WATCH','OK'],
+      datasets:[{data:[s.NO_MOVEMENT,s.OVERSTOCK,s.LOW_STOCK,s.WATCH,s.OK],backgroundColor:['#636e72','#e17055','#d63031','#fdcb6e','#00b894']}]
+    },
+    options:{responsive:true,maintainAspectRatio:false}
+  });
+
+  // Revenue by status
+  const revByStatus = {};
+  D.stock.vs_sales.items.forEach(i=>{
+    revByStatus[i.status] = (revByStatus[i.status]||0) + i.sales_rev;
+  });
+  new Chart(document.getElementById('chartSupplyRevByStatus'),{
+    type:'bar',
+    data:{
+      labels:Object.keys(revByStatus),
+      datasets:[{label:'Revenue',data:Object.values(revByStatus),backgroundColor:['#636e72','#e17055','#d63031','#fdcb6e','#00b894']}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      scales:{y:{ticks:{callback:v=>fmtRpShort(v)}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtRp(ctx.parsed.y)}}}
+    }
+  });
+
+  // Pipeline
+  new Chart(document.getElementById('chartSupplyPipeline'),{
+    type:'bar',
+    data:{
+      labels:p.pipeline.labels,
+      datasets:[{label:'PO Count',data:p.pipeline.values,backgroundColor:['#636e72','#fdcb6e','#74b9ff','#00b894']}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtNum(ctx.parsed.y)+' PO'}}}
+    }
+  });
+
+  // Attention table
+  const tbody5 = document.querySelector('#tableAttention tbody');
+  attentionItems.sort((a,b)=>b.sales_rev-a.sales_rev).forEach((it,idx)=>{
+    const badgeClass = it.status==='LOW_STOCK'?'badge-red':'badge-orange';
+    const action = it.status==='LOW_STOCK'?'🔴 Restock ASAP':'🟡 Monitor';
+    tbody5.innerHTML += '<tr><td>'+(idx+1)+'</td><td>'+it.item+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.nama+'</td><td><span class="badge '+badgeClass+'">'+it.status+'</span></td><td class="text-right">'+fmtNum(it.stock)+'</td><td class="text-right">'+fmtNum(it.velocity)+'</td><td class="text-right">'+it.mos.toFixed(1)+'</td><td class="text-right">'+fmtRp(it.sales_rev)+'</td><td>'+action+'</td></tr>';
+  });
+
+  // Cross-ref table (top 30 by revenue from vs_sales)
+  const tbody6 = document.querySelector('#tableCrossRef tbody');
+  D.stock.vs_sales.items.slice(0,30).forEach((it,idx)=>{
+    const badgeClass = {NO_MOVEMENT:'badge-gray',OVERSTOCK:'badge-orange',LOW_STOCK:'badge-red',WATCH:'badge-orange',OK:'badge-green'}[it.status]||'badge-blue';
+    tbody6.innerHTML += '<tr><td>'+(idx+1)+'</td><td>'+it.item+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.nama+'</td><td class="text-right">'+fmtRp(it.sales_rev)+'</td><td class="text-right">'+fmtNum(it.stock)+'</td><td class="text-right">'+fmtNum(it.velocity)+'</td><td class="text-right">'+it.mos.toFixed(1)+'</td><td><span class="badge '+badgeClass+'">'+it.status+'</span></td></tr>';
+  });
+})();
 </script>
 </body>
 </html>
