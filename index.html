@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PT SNA — Dashboard Penjualan</title>
+<script src="chart.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #242836;
+    --border: #2d3140; --text: #e4e4e7; --muted: #8b8fa3;
+    --accent: #6366f1; --accent2: #818cf8; --green: #22c55e;
+    --red: #ef4444; --orange: #f97316; --yellow: #eab308;
+    --blue: #3b82f6; --purple: #a78bfa; --teal: #14b8a6;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  h1 span { color: var(--accent2); }
+  .subtitle { color: var(--muted); font-size: 13px; }
+  .year-toggle { display: flex; gap: 4px; background: var(--surface); border-radius: 8px; padding: 4px; }
+  .year-btn { padding: 6px 16px; border: none; background: transparent; color: var(--muted); cursor: pointer; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+  .year-btn.active { background: var(--accent); color: #fff; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 4px; }
+  .kpi-value { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .kpi-green { color: var(--green); }
+  .kpi-red { color: var(--red); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .card-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .card-title small { color: var(--muted); font-weight: 400; }
+
+  .chart-wrap { position: relative; height: 300px; }
+  .chart-wrap canvas { max-height: 100%; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 6px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; }
+  .right { text-align: right; }
+  .bar-bg { background: var(--surface2); border-radius: 4px; height: 6px; width: 100%; position: relative; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .pct-bar { width: 80px; display: inline-block; vertical-align: middle; margin-left: 8px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+
+  footer { text-align: center; color: var(--muted); font-size: 11px; padding: 24px 0 12px; border-top: 1px solid var(--border); margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div>
+    <h1>📦 <span>PT SNA</span> — Dashboard Penjualan</h1>
+    <div class="subtitle">Saka Niaga Sukses Abadi • 2025–2026 YTD • 24 cabang</div>
+  </div>
+</header>
+
+<!-- KPI CARDS -->
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kpi-label">Revenue 2025</div>
+    <div class="kpi-value">Rp 182.4B</div>
+    <div class="kpi-sub">Full year • 12 bulan</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Revenue 2026 YTD</div>
+    <div class="kpi-value">Rp 78.1B</div>
+    <div class="kpi-sub">4 bulan • Annualized Rp 234.2B</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Pertumbuhan YoY</div>
+    <div class="kpi-value kpi-green">▲ 28.4%</div>
+    <div class="kpi-sub">Annualized vs 2025</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Pelanggan</div>
+    <div class="kpi-value">3,617</div>
+    <div class="kpi-sub">Unique customers</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Invoices</div>
+    <div class="kpi-value">69,059</div>
+    <div class="kpi-sub">Total transaksi</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">SKU Aktif</div>
+    <div class="kpi-value">1,292</div>
+    <div class="kpi-sub">Produk terjual</div>
+  </div>
+</div>
+
+<!-- CHART ROW 1: Monthly Trend + YoY -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">📈 Trend Pendapatan Bulanan <small>Rp Miliar</small></div>
+    <div class="chart-wrap"><canvas id="chartMonthly"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📊 YoY Perbandingan Bulanan <small>2026 vs 2025 (sama bulan)</small></div>
+    <div class="chart-wrap"><canvas id="chartYoY"></canvas></div>
+  </div>
+</div>
+
+<!-- CHART ROW 2: Branch + Product -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">🏢 Top 15 Cabang <small>Revenue 2025</small></div>
+    <div class="chart-wrap"><canvas id="chartBranch"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📦 Komposisi Produk <small>% revenue by grup</small></div>
+    <div class="chart-wrap"><canvas id="chartProduct"></canvas></div>
+  </div>
+</div>
+
+<!-- CHART ROW 3: LOB + Delivery -->
+<div class="grid-3">
+  <div class="card">
+    <div class="card-title">🏷️ Line of Business</div>
+    <div class="chart-wrap"><canvas id="chartLOB"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🚚 Delivery Mode</div>
+    <div class="chart-wrap"><canvas id="chartDelivery"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">👥 Customer Pareto</div>
+    <div class="chart-wrap"><canvas id="chartPareto"></canvas></div>
+  </div>
+</div>
+
+<!-- TABLE: Top 15 Items -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title">🏆 Top 15 Item Terlaris <small>Revenue 2025+2026</small></div>
+  <table>
+    <thead><tr><th>#</th><th>Kode</th><th>Nama Item</th><th class="right">Qty</th><th class="right">Revenue</th><th>% Share</th></tr></thead>
+    <tbody id="tableItems"></tbody>
+  </table>
+</div>
+
+<!-- TABLE: Top 20 Customers -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title">👤 Top 20 Pelanggan <small>Revenue 2025+2026</small></div>
+  <table>
+    <thead><tr><th>#</th><th>Kode</th><th>Nama</th><th class="right">Revenue</th><th>% Share</th></tr></thead>
+    <tbody id="tableCustomers"></tbody>
+  </table>
+</div>
+
+<!-- TABLE: Branch Detail -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-title">🏢 Detail Cabang <small>YoY comparison</small></div>
+  <table>
+    <thead><tr><th>Cabang</th><th class="right">2025</th><th class="right">2026 YTD</th><th class="right">2026 Ann.</th><th class="right">YoY</th><th>Growth</th></tr></thead>
+    <tbody id="tableBranch"></tbody>
+  </table>
+</div>
+
+<footer>PT Saka Niaga Sukses Abadi • Dashboard generated Jun 2026 • Data: Google Sheets</footer>
+</div>
+
+<script>
+const D = {"kpis": {"rev2025": 182385677215.52002, "rev2026": 78053397826.94, "rev2026_ann": 234160193480.82, "growth": 28.4, "customers": 3617, "invoices": 69059, "skus": 1292, "branches": 24, "n_months_2026": 4}, "monthly": {"labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], "y2025": [15131547905.5, 13666626536.69, 10228181910.0, 11374365220.64, 14748618916.0, 14973539171.76, 16108924750.5, 14760833938.0, 16761940722.6, 18399243362.23, 17019512277.6, 19212342504.0], "y2026": [20705374832.77, 17292525601.489998, 14877197420.0, 25178299972.68, 0, 0, 0, 0, 0, 0, 0, 0]}, "branches": {"labels": ["MTR", "GYR", "DPS", "TBN", "SIN", "KRS", "KTI", "KLK", "NGR", "SBW", "LTM", "BMA", "KPG", "BPN", "SMD", "TGT", "PRJHO", "PLR", "SBY", "DISL", "PRK", "PRJNTB", "PRJ", "PRJ-NTB"], "rev25": [23537480755.5, 15430555638.0, 15388856491.0, 15128696433.0, 12565724724.0, 12519661482.0, 12034916377.28, 11732924075.75, 11226080346.0, 7853117479.0, 7625969893.0, 7425025068.0, 6858015554.23, 5516320739.26, 5514244008.0, 4673147197.0, 2909701584.0, 2075887110.5, 1174502310.0, 1114178050.0, 64526900.0, 16145000.0, 0, 0], "rev26": [8902511321.0, 6025999905.0, 6270709789.190001, 5474157499.0, 5620769884.0, 4897412311.0, 4609784694.5, 4453062720.0, 4223546891.0, 2574389482.5, 3828087324.0, 3096456385.0, 4561112565.0, 2215509735.5, 2593245286.75, 2412631727.5, 0, 694356679.0, 0, 726208320.0, 53701275.0, 0, 4807305282.0, 12438750.0]}, "products": {"labels": ["Paku", "Kabel", "Triplek MRK", "GRC Board", "Bata Ringan", "Djabesmen", "Lem Fox", "Gypsum", "Seng", "Kawat", "Baja Ringan", "Kusen"], "values": [40406326707.0, 35101329329.2, 31331731149.0, 27196829272.49, 20460718600.0, 16149579302.0, 15233158842.23, 12910033371.0, 10179667817.0, 9799298012.5, 9484042285.5, 6230975221.0]}, "items": [{"kode": "20DJ113.3X180", "nama": "ASBES DJABES 11 GELOMBANG KECIL 3.3MMX1800X80", "revenue": 15622160382.0, "qty": 511544.0}, {"kode": "28GSY9120240", "nama": "GYPSUM BOARD YOSHINO 9X1200X2400MM", "revenue": 11465873750.0, "qty": 208833.0}, {"kode": "03PQ300", "nama": "PAKU SUPERQ 7CM (3\" X 10 @30KG)", "revenue": 10807480638.5, "qty": 25011.0}, {"kode": "16BL10", "nama": "BATA RINGAN BLESSCON 60CM X 20CM X10CM", "revenue": 7770851787.0, "qty": 10111.010000000002}, {"kode": "04BA20", "nama": "KAWAT BENDRAT BWG-21 @20KG", "revenue": 7326912852.5, "qty": 27326.0}, {"kode": "03PQ200", "nama": "PAKU SUPERQ 5CM (2\" X 12 @30KG)", "revenue": 6269651715.0, "qty": 14400.0}, {"kode": "19LMFPVHK70D", "nama": "LEM FOX PVAC (HIJAU) KANTONG 700G (240) DRM", "revenue": 6111320573.0, "qty": 1405.0}, {"kode": "02GRCB3.5X120", "nama": "GRC CILUK BOARD 3.5MMX1200X2400 SE", "revenue": 6060271525.5, "qty": 130681.0}, {"kode": "16BF10", "nama": "BATA RINGAN FOCON 60CM X 20CM X 10CM", "revenue": 5959998040.0, "qty": 7957.080000000003}, {"kode": "05SGAB914", "nama": "SENG CAP GAJAH ASIA GEL. BESAR 0.2X914X1829", "revenue": 5671763997.0, "qty": 120435.0}, {"kode": "03PQ400", "nama": "PAKU SUPERQ 10CM (4\" X 8 @30KG)", "revenue": 5474559924.5, "qty": 12642.0}, {"kode": "02GRC4X120", "nama": "GRC BOARD 4MMX1200X2400 SE", "revenue": 5447555985.0, "qty": 90386.0}, {"kode": "08TND0.25X6", "nama": "TRIMDEK NEODECK SILVER 0.25MMX75CMX6M", "revenue": 5374088523.0, "qty": 41603.0}, {"kode": "30KBLS325100", "nama": "KABEL SUPREME NYM 3X2.5 MM2 (RE) 100M", "revenue": 4653507895.0, "qty": 2483.0}, {"kode": "16BU10", "nama": "BATA RINGAN UTOMO 60CM X 20CM X 10CM", "revenue": 4592956194.0, "qty": 6087.219999999999}], "customers": [{"kode": "210.000914", "nama": "DIVA, TK", "revenue": 2655268150.0}, {"kode": "700.000096", "nama": "PT. BRUDER KONSTRUKSI NUSANTAR", "revenue": 2539986285.0}, {"kode": "110.002540", "nama": "SURYA PRISMA ELEKTRINDO, CV", "revenue": 2524374716.0}, {"kode": "211.000174", "nama": "MILA KARYA MANDIRI, CV", "revenue": 1721022841.0}, {"kode": "110.000588", "nama": "PUTRA LESTARI, UD", "revenue": 1658904599.0}, {"kode": "210.000989", "nama": "KUTA LISTRIK, TK", "revenue": 1575056223.0}, {"kode": "210.000863", "nama": "RINJANI ELEKTRIK, UD", "revenue": 1537787810.0}, {"kode": "210.000811", "nama": "LOMBOK KARUNIA UTAMA, PT", "revenue": 1449362318.0}, {"kode": "620.000008", "nama": "MINI DEPO INDONESIA, PT", "revenue": 1174502310.0}, {"kode": "230.000217", "nama": "LABALONG SEJAHTERA, CV", "revenue": 1090348776.0}, {"kode": "150.000552", "nama": "SATRIA BUANA PERKASA, CV", "revenue": 1077829140.0}, {"kode": "160.000136", "nama": "KEMBAR BANGUNAN, UD", "revenue": 1054323897.0}, {"kode": "420.001034", "nama": "UD. CAHAYA, UD", "revenue": 1053118949.0}, {"kode": "110.002436", "nama": "SURYA, TK", "revenue": 979701430.0}, {"kode": "110.002366", "nama": "ECOLIT KONTRAKTOR BALI, PT", "revenue": 958894200.0}, {"kode": "210.000287", "nama": "SRI JAYA BANGUNAN TK, TK", "revenue": 953988766.0}, {"kode": "110.001322", "nama": "CAHAYA PUTRI, UD", "revenue": 881262364.0}, {"kode": "420.000764", "nama": "KLASIK PROMETALINDO, CV", "revenue": 864864700.0}, {"kode": "310.000480", "nama": "MITRA BANGUNAN, CV", "revenue": 840030177.0}, {"kode": "220.000093", "nama": "SAHABAT, TK", "revenue": 820228675.0}], "pareto": [{"pctCust": 0.0, "pctRev": 1.0}, {"pctCust": 0.1, "pctRev": 2.0}, {"pctCust": 0.1, "pctRev": 3.0}, {"pctCust": 0.1, "pctRev": 3.6}, {"pctCust": 0.1, "pctRev": 4.3}, {"pctCust": 0.2, "pctRev": 4.9}, {"pctCust": 0.2, "pctRev": 5.5}, {"pctCust": 0.2, "pctRev": 6.0}, {"pctCust": 0.2, "pctRev": 6.5}, {"pctCust": 0.3, "pctRev": 6.9}, {"pctCust": 0.3, "pctRev": 7.3}, {"pctCust": 0.3, "pctRev": 7.7}, {"pctCust": 0.4, "pctRev": 8.1}, {"pctCust": 0.4, "pctRev": 8.5}, {"pctCust": 0.4, "pctRev": 8.9}, {"pctCust": 0.4, "pctRev": 9.2}, {"pctCust": 0.5, "pctRev": 9.6}, {"pctCust": 0.5, "pctRev": 9.9}, {"pctCust": 0.5, "pctRev": 10.2}, {"pctCust": 0.6, "pctRev": 10.5}, {"pctCust": 1.4, "pctRev": 18.3}, {"pctCust": 2.8, "pctRev": 26.4}, {"pctCust": 4.2, "pctRev": 32.3}, {"pctCust": 5.6, "pctRev": 37.3}, {"pctCust": 6.9, "pctRev": 41.7}, {"pctCust": 8.3, "pctRev": 45.6}, {"pctCust": 9.7, "pctRev": 49.2}, {"pctCust": 11.1, "pctRev": 52.5}, {"pctCust": 12.5, "pctRev": 55.5}, {"pctCust": 13.9, "pctRev": 58.2}, {"pctCust": 15.2, "pctRev": 60.8}, {"pctCust": 16.6, "pctRev": 63.1}, {"pctCust": 18.0, "pctRev": 65.3}, {"pctCust": 19.4, "pctRev": 67.4}, {"pctCust": 20.8, "pctRev": 69.4}, {"pctCust": 22.1, "pctRev": 71.2}, {"pctCust": 23.5, "pctRev": 72.9}, {"pctCust": 24.9, "pctRev": 74.5}, {"pctCust": 26.3, "pctRev": 76.1}, {"pctCust": 27.7, "pctRev": 77.5}, {"pctCust": 29.1, "pctRev": 78.9}, {"pctCust": 30.4, "pctRev": 80.2}, {"pctCust": 31.8, "pctRev": 81.4}, {"pctCust": 33.2, "pctRev": 82.6}, {"pctCust": 34.6, "pctRev": 83.7}, {"pctCust": 36.0, "pctRev": 84.7}, {"pctCust": 37.4, "pctRev": 85.7}, {"pctCust": 38.7, "pctRev": 86.6}, {"pctCust": 40.1, "pctRev": 87.4}, {"pctCust": 41.5, "pctRev": 88.3}, {"pctCust": 42.9, "pctRev": 89.0}, {"pctCust": 44.3, "pctRev": 89.8}, {"pctCust": 45.6, "pctRev": 90.4}, {"pctCust": 47.0, "pctRev": 91.1}, {"pctCust": 48.4, "pctRev": 91.7}, {"pctCust": 49.8, "pctRev": 92.3}, {"pctCust": 51.2, "pctRev": 92.9}, {"pctCust": 52.6, "pctRev": 93.4}, {"pctCust": 53.9, "pctRev": 93.9}, {"pctCust": 55.3, "pctRev": 94.4}, {"pctCust": 56.7, "pctRev": 94.8}, {"pctCust": 58.1, "pctRev": 95.2}, {"pctCust": 59.5, "pctRev": 95.6}, {"pctCust": 60.9, "pctRev": 96.0}, {"pctCust": 62.2, "pctRev": 96.4}, {"pctCust": 63.6, "pctRev": 96.7}, {"pctCust": 65.0, "pctRev": 97.0}, {"pctCust": 66.4, "pctRev": 97.3}, {"pctCust": 67.8, "pctRev": 97.5}, {"pctCust": 69.1, "pctRev": 97.8}, {"pctCust": 70.5, "pctRev": 98.0}, {"pctCust": 71.9, "pctRev": 98.2}, {"pctCust": 73.3, "pctRev": 98.4}, {"pctCust": 74.7, "pctRev": 98.6}, {"pctCust": 76.1, "pctRev": 98.8}, {"pctCust": 77.4, "pctRev": 98.9}, {"pctCust": 78.8, "pctRev": 99.1}, {"pctCust": 80.2, "pctRev": 99.2}, {"pctCust": 81.6, "pctRev": 99.3}, {"pctCust": 83.0, "pctRev": 99.4}, {"pctCust": 84.4, "pctRev": 99.5}, {"pctCust": 85.7, "pctRev": 99.6}, {"pctCust": 87.1, "pctRev": 99.7}, {"pctCust": 88.5, "pctRev": 99.7}, {"pctCust": 89.9, "pctRev": 99.8}, {"pctCust": 91.3, "pctRev": 99.8}, {"pctCust": 92.6, "pctRev": 99.9}, {"pctCust": 94.0, "pctRev": 99.9}, {"pctCust": 95.4, "pctRev": 100.0}, {"pctCust": 96.8, "pctRev": 100.0}, {"pctCust": 98.2, "pctRev": 100.0}, {"pctCust": 99.6, "pctRev": 100.0}, {"pctCust": 100.0, "pctRev": 100.0}], "lob": {"labels": ["RTL", "PRJ", "WHS", "PRV", "DIST", "IND"], "values": [228124562968.77002, 13517341562.189997, 12570434640.5, 4044230518.0, 1714086370.0, 468418983.0]}, "delivery": {"labels": ["KIRIM", "AMBIL"], "values": [204626749076.43994, 55812325966.020004]}, "yoy": [{"month": "Jan", "v2025": 15131547905.5, "v2026": 20705374832.77, "growth": 36.8}, {"month": "Feb", "v2025": 13666626536.69, "v2026": 17292525601.489998, "growth": 26.5}, {"month": "Mar", "v2025": 10228181910.0, "v2026": 14877197420.0, "growth": 45.5}, {"month": "Apr", "v2025": 11374365220.64, "v2026": 25178299972.68, "growth": 121.4}, {"month": "May", "v2025": 14748618916.0, "v2026": 0, "growth": null}, {"month": "Jun", "v2025": 14973539171.76, "v2026": 0, "growth": null}, {"month": "Jul", "v2025": 16108924750.5, "v2026": 0, "growth": null}, {"month": "Aug", "v2025": 14760833938.0, "v2026": 0, "growth": null}, {"month": "Sep", "v2025": 16761940722.6, "v2026": 0, "growth": null}, {"month": "Oct", "v2025": 18399243362.23, "v2026": 0, "growth": null}, {"month": "Nov", "v2025": 17019512277.6, "v2026": 0, "growth": null}, {"month": "Dec", "v2025": 19212342504.0, "v2026": 0, "growth": null}]};
+
+// Shared config
+Chart.defaults.color = '#8b8fa3';
+Chart.defaults.borderColor = '#2d3140';
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+Chart.defaults.font.size = 11;
+
+const fmt = (v) => {
+  if (v >= 1e12) return 'Rp ' + (v/1e12).toFixed(1) + 'T';
+  if (v >= 1e9) return 'Rp ' + (v/1e9).toFixed(1) + 'B';
+  if (v >= 1e6) return 'Rp ' + (v/1e6).toFixed(0) + 'M';
+  return 'Rp ' + v.toLocaleString('id');
+};
+const fmtB = (v) => (v/1e9).toFixed(1);
+const pct = (v) => v >= 0 ? '▲' + v.toFixed(1) + '%' : '▼' + Math.abs(v).toFixed(1) + '%';
+
+// 1. Monthly Trend
+new Chart(document.getElementById('chartMonthly'), {
+  type: 'bar',
+  data: {
+    labels: D.monthly.labels,
+    datasets: [
+      { label: '2025', data: D.monthly.y2025.map(v => v/1e9), backgroundColor: '#6366f1', borderRadius: 4, barPercentage: 0.7 },
+      { label: '2026', data: D.monthly.y2026.map(v => v/1e9), backgroundColor: '#22c55e', borderRadius: 4, barPercentage: 0.7 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (c) => c.dataset.label + ': Rp ' + c.raw.toFixed(1) + 'B' } } },
+    scales: { y: { ticks: { callback: v => 'Rp ' + v + 'B' }, grid: { color: '#2d3140' } }, x: { grid: { display: false } } }
+  }
+});
+
+// 2. YoY Comparison
+const yoyData = D.yoy.filter(m => m.v2026 > 0);
+new Chart(document.getElementById('chartYoY'), {
+  type: 'bar',
+  data: {
+    labels: yoyData.map(m => m.month),
+    datasets: [
+      { label: '2025', data: yoyData.map(m => m.v2025/1e9), backgroundColor: '#6366f1', borderRadius: 4, barPercentage: 0.6 },
+      { label: '2026', data: yoyData.map(m => m.v2026/1e9), backgroundColor: '#22c55e', borderRadius: 4, barPercentage: 0.6 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: {
+        callbacks: {
+          afterLabel: (c) => {
+            const m = yoyData[c.dataIndex];
+            return m.growth !== null ? 'YoY: ' + pct(m.growth) : '';
+          }
+        }
+      }
+    },
+    scales: { y: { ticks: { callback: v => 'Rp ' + v + 'B' }, grid: { color: '#2d3140' } }, x: { grid: { display: false } } }
+  }
+});
+
+// 3. Branch Performance (top 15)
+const bN = 15;
+const bColors = D.branches.rev26.slice(0, bN).map((v, i) => v > 0 ? '#6366f1' : '#3b3f54');
+new Chart(document.getElementById('chartBranch'), {
+  type: 'bar',
+  data: {
+    labels: D.branches.labels.slice(0, bN),
+    datasets: [{ label: '2025', data: D.branches.rev25.slice(0, bN).map(v => v/1e9), backgroundColor: '#6366f1', borderRadius: 4 }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => 'Rp ' + c.raw.toFixed(2) + 'B' } } },
+    scales: { x: { ticks: { callback: v => v + 'B' }, grid: { color: '#2d3140' } }, y: { grid: { display: false } } }
+  }
+});
+
+// 4. Product Groups (doughnut)
+const pColors = ['#6366f1','#22c55e','#f97316','#3b82f6','#eab308','#ef4444','#a78bfa','#14b8a6','#f472b6','#84cc16','#06b6d4','#fb923c'];
+new Chart(document.getElementById('chartProduct'), {
+  type: 'doughnut',
+  data: {
+    labels: D.products.labels,
+    datasets: [{ data: D.products.values.map(v => v/1e9), backgroundColor: pColors, borderWidth: 0 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '55%',
+    plugins: {
+      legend: { position: 'right', labels: { boxWidth: 12, padding: 8, font: { size: 10 } } },
+      tooltip: { callbacks: { label: (c) => c.label + ': Rp ' + c.raw.toFixed(1) + 'B' } }
+    }
+  }
+});
+
+// 5. LOB
+new Chart(document.getElementById('chartLOB'), {
+  type: 'doughnut',
+  data: { labels: D.lob.labels, datasets: [{ data: D.lob.values.map(v => v/1e9), backgroundColor: ['#6366f1','#22c55e','#f97316','#3b82f6','#eab308'], borderWidth: 0 }] },
+  options: { responsive: true, maintainAspectRatio: false, cutout: '50%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { callbacks: { label: (c) => c.label + ': Rp ' + c.raw.toFixed(1) + 'B' } } } }
+});
+
+// 6. Delivery
+new Chart(document.getElementById('chartDelivery'), {
+  type: 'doughnut',
+  data: { labels: D.delivery.labels, datasets: [{ data: D.delivery.values.map(v => v/1e9), backgroundColor: ['#3b82f6','#f97316'], borderWidth: 0 }] },
+  options: { responsive: true, maintainAspectRatio: false, cutout: '50%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { callbacks: { label: (c) => c.label + ': Rp ' + c.raw.toFixed(1) + 'B' } } } }
+});
+
+// 7. Pareto
+new Chart(document.getElementById('chartPareto'), {
+  type: 'line',
+  data: {
+    labels: D.pareto.map(p => p.pctCust + '%'),
+    datasets: [
+      { label: '% Kumulatif Revenue', data: D.pareto.map(p => p.pctRev), borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', fill: true, tension: 0.3, pointRadius: 2 },
+      { label: 'Garis 80%', data: D.pareto.map(() => 80), borderColor: '#ef4444', borderDash: [5,5], pointRadius: 0 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { display: true, ticks: { maxTicksLimit: 6 }, title: { display: true, text: '% Customer' } }, y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#2d3140' } } }
+  }
+});
+
+// 8. Top Items Table
+const totalRev = D.kpis.rev2025 + D.kpis.rev2026;
+const tbodyI = document.getElementById('tableItems');
+D.items.forEach((item, i) => {
+  const share = (item.revenue / totalRev * 100).toFixed(1);
+  tbodyI.innerHTML += '<tr><td>' + (i+1) + '</td><td class="mono">' + item.kode + '</td><td>' + item.nama + '</td><td class="right">' + Math.round(item.qty).toLocaleString('id') + '</td><td class="right">' + fmt(item.revenue) + '</td><td><div style="display:flex;align-items:center;gap:6px">' + share + '%<div class="pct-bar"><div class="bar-bg"><div class="bar-fill" style="width:' + share + '%;background:var(--accent)"></div></div></div></div></td></tr>';
+});
+
+// 9. Top Customers Table
+const tbodyC = document.getElementById('tableCustomers');
+D.customers.forEach((c, i) => {
+  const share = (c.revenue / totalRev * 100).toFixed(1);
+  tbodyC.innerHTML += '<tr><td>' + (i+1) + '</td><td class="mono">' + c.kode + '</td><td>' + c.nama + '</td><td class="right">' + fmt(c.revenue) + '</td><td><div style="display:flex;align-items:center;gap:6px">' + share + '%<div class="pct-bar"><div class="bar-bg"><div class="bar-fill" style="width:' + Math.min(share * 3, 100) + '%;background:var(--green)"></div></div></div></div></td></tr>';
+});
+
+// 10. Branch Detail Table
+const tbodyB = document.getElementById('tableBranch');
+const months26 = D.kpis.n_months_2026;
+D.branches.labels.forEach((b, i) => {
+  const r25 = D.branches.rev25[i];
+  const r26 = D.branches.rev26[i];
+  const r26a = r26 / months26 * 12;
+  const g = r25 > 0 ? ((r26a / r25 - 1) * 100) : null;
+  const gStr = g !== null ? pct(g) : '-';
+  const gClass = g !== null ? (g >= 0 ? 'kpi-green' : 'kpi-red') : '';
+  tbodyB.innerHTML += '<tr><td><strong>' + b + '</strong></td><td class="right">' + fmt(r25) + '</td><td class="right">' + fmt(r26) + '</td><td class="right">' + fmt(r26a) + '</td><td class="right ' + gClass + '">' + gStr + '</td><td>' + (g !== null ? '<span class="badge ' + (g >= 0 ? 'badge-green' : 'badge-red') + '">' + (g >= 0 ? '▲' : '▼') + '</span>' : '-') + '</td></tr>';
+});
+</script>
+</body>
+</html>
