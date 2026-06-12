@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Fetch & process all SNA data sources into dashboard JSON."""
+"""Fetch & process all SNA data sources into dashboard JSON with filter support."""
 import csv, json, os
 from collections import defaultdict
 
 def parse_num(s):
-    """US format: commas = thousands, dot = decimal. For sales/stock data."""
+    """US format: commas = thousands, dot = decimal."""
     if not s or not s.strip(): return 0
     s = s.strip().replace(' ','').replace('"','').replace(',','')
     try: return float(s)
     except: return 0
 
 def parse_num_id(s):
-    """Indonesian format: dots = thousands, comma = decimal. For procurement data."""
+    """Indonesian format: dots = thousands, comma = decimal."""
     if not s or not s.strip(): return 0
     s = s.strip().replace(' ','').replace('"','').replace('.','').replace(',','.')
     try: return float(s)
@@ -22,7 +22,7 @@ def load_csv(path):
         return list(csv.reader(f))
 
 # ============================================================
-# 1. MASTER DATA
+# MASTER DATA
 # ============================================================
 print("Loading master data...")
 items_raw = load_csv('/root/master_list_items.csv')
@@ -31,42 +31,29 @@ for row in items_raw[1:]:
     if len(row) >= 5:
         item_map[row[0].strip()] = {'nama':row[1].strip(),'group':row[3].strip()}
 
-suppliers_raw = load_csv('/root/master_supplier_list.csv')
-supplier_map = {}
-for row in suppliers_raw[1:]:
-    if len(row) >= 2:
-        supplier_map[row[1].strip()] = row[0].strip()
-
-print(f"  Items: {len(item_map)}, Suppliers: {len(supplier_map)}")
-
 # ============================================================
-# 2. SALES DATA (header in row 1, data from row 2)
+# SALES DATA
 # ============================================================
 print("Loading sales data...")
-month_name_to_code = {'Jan':'Jan','Feb':'Feb','Mar':'Mar','Apr':'Apr','Mei':'May','May':'May',
-                       'Jun':'Jun','Jul':'Jul','Agt':'Aug','Aug':'Aug','Sep':'Sep',
-                       'Okt':'Oct','Oct':'Oct','Nov':'Nov','Des':'Dec','Dec':'Dec'}
+month_map = {'Jan':'Jan','Feb':'Feb','Mar':'Mar','Apr':'Apr','Mei':'May','May':'May',
+             'Jun':'Jun','Jul':'Jul','Agt':'Aug','Aug':'Aug','Sep':'Sep',
+             'Okt':'Oct','Oct':'Oct','Nov':'Nov','Des':'Dec','Dec':'Dec'}
+month_order = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 sales = []
 for fname, year in [('/tmp/sheet_a.csv', 2025), ('/tmp/sheet_b.csv', 2026)]:
     rows = load_csv(fname)
-    header = [h.strip() for h in rows[1]]
-    # Build index map
-    idx = {h: i for i, h in enumerate(header)}
     for row in rows[2:]:
         if len(row) < 12: continue
-        # Parse bulan from Tanggal col [2]: "1-Jan-25"
         tanggal = row[2].strip() if len(row) > 2 else ''
         bulan = ''
         if tanggal:
             parts = tanggal.split('-')
             if len(parts) >= 2:
-                bulan = month_name_to_code.get(parts[1], parts[1])
-        # Fallback: col 41 (Bulan) for 2025
+                bulan = month_map.get(parts[1], parts[1])
         if not bulan and len(row) > 41:
-            bulan = month_name_to_code.get(row[41].strip(), '')
+            bulan = month_map.get(row[41].strip(), '')
         if not bulan: continue
-
         sales.append({
             'tahun': year,
             'bulan': bulan,
@@ -78,7 +65,6 @@ for fname, year in [('/tmp/sheet_a.csv', 2025), ('/tmp/sheet_b.csv', 2026)]:
             'keterangan': row[20].strip() if len(row) > 20 else '',
             'qty': parse_num(row[8]),
             'harga': parse_num(row[9]),
-            'diskon': parse_num(row[10]),
             'jumlah': parse_num(row[11]),
             'lob': row[17].strip() if len(row) > 17 else '',
             'delivery': row[19].strip() if len(row) > 19 else '',
@@ -86,41 +72,13 @@ for fname, year in [('/tmp/sheet_a.csv', 2025), ('/tmp/sheet_b.csv', 2026)]:
 
 print(f"  Sales rows: {len(sales)}")
 
-# Sales aggregation
-month_order = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-monthly_rev = {'2025': defaultdict(float), '2026': defaultdict(float)}
-branch_rev = defaultdict(lambda: {'rev25':0,'rev26':0,'qty25':0,'qty26':0})
-item_rev = defaultdict(float)
-item_qty = defaultdict(float)
-item_name = {}
-grup_rev = defaultdict(float)
-cust_rev = defaultdict(float)
-cust_name = {}
-lob_rev = defaultdict(float)
-deliv_rev = defaultdict(float)
-
-for s in sales:
-    yr = str(s['tahun'])
-    monthly_rev[yr][s['bulan']] += s['jumlah']
-    key = s['cabang']
-    if s['tahun'] == 2025:
-        branch_rev[key]['rev25'] += s['jumlah']
-        branch_rev[key]['qty25'] += s['qty']
-    else:
-        branch_rev[key]['rev26'] += s['jumlah']
-        branch_rev[key]['qty26'] += s['qty']
-    item_rev[s['item']] += s['jumlah']
-    item_qty[s['item']] += s['qty']
-    if s['keterangan']: item_name[s['item']] = s['keterangan']
-    grup_rev[s['grup_item']] += s['jumlah']
-    if s['kode_pelanggan']:
-        cust_rev[s['kode_pelanggan']] += s['jumlah']
-        cust_name[s['kode_pelanggan']] = s['pelanggan']
-    lob_rev[s['lob']] += s['jumlah']
-    deliv_rev[s['delivery']] += s['jumlah']
+# Unique filter values
+all_branches = sorted(set(s['cabang'] for s in sales if s['cabang']))
+all_months = month_order
+all_items = sorted(set(s['item'] for s in sales))
 
 # ============================================================
-# 3. STOCK DATA
+# STOCK DATA
 # ============================================================
 print("Loading stock data...")
 stock_rows = load_csv('/tmp/stock_sheet.csv')
@@ -139,16 +97,8 @@ for row in stock_rows[5:]:
     })
 print(f"  Stock rows: {len(stock)}")
 
-stock_by_branch = defaultdict(lambda: {'items':0, 'akhir':0, 'in':0, 'out':0})
-stock_by_item = defaultdict(lambda: {'akhir':0, 'in':0, 'out':0, 'nama':''})
-for s in stock:
-    b = stock_by_branch[s['cabang']]
-    b['items'] += 1; b['akhir'] += s['akhir']; b['in'] += s['in']; b['out'] += s['out']
-    si = stock_by_item[s['item_code']]
-    si['akhir'] += s['akhir']; si['in'] += s['in']; si['out'] += s['out']; si['nama'] = s['nama']
-
 # ============================================================
-# 4. PROCUREMENT DATA
+# PROCUREMENT DATA
 # ============================================================
 print("Loading procurement data...")
 proc_rows = load_csv('/tmp/djabes_sheet.csv')
@@ -171,23 +121,10 @@ for row in proc_rows[2:]:
     })
 print(f"  Procurement rows: {len(proc)}")
 
-proc_status = defaultdict(int)
-proc_by_reg = defaultdict(lambda: {'count':0, 'nilai':0, 'berat':0})
-proc_by_supplier = defaultdict(lambda: {'count':0, 'nilai':0})
-proc_by_kategori = defaultdict(lambda: {'count':0, 'nilai':0})
-
-for p in proc:
-    if p['status'] == 'Batal': continue
-    proc_status[p['status']] += 1
-    r = proc_by_reg[p['reg']]
-    r['count'] += 1; r['nilai'] += p['nilai_beli']; r['berat'] += p['total_berat']
-    proc_by_supplier[p['supplier']]['count'] += 1
-    proc_by_supplier[p['supplier']]['nilai'] += p['nilai_beli']
-    proc_by_kategori[p['kategori']]['count'] += 1
-    proc_by_kategori[p['kategori']]['nilai'] += p['nilai_beli']
+all_suppliers = sorted(set(p['supplier'] for p in proc if p['supplier'] and p['status']!='Batal'))
 
 # ============================================================
-# 5. STOCK VS SALES VELOCITY
+# STOCK VS SALES VELOCITY (computed fresh each time based on filters)
 # ============================================================
 print("Computing stock vs sales velocity...")
 item_monthly_qty = defaultdict(float)
@@ -195,42 +132,182 @@ for s in sales:
     if s['tahun'] == 2026:
         item_monthly_qty[s['item']] += s['qty']
 
-stock_vs_sales = []
-for item_code, stock_info in stock_by_item.items():
-    velocity = item_monthly_qty.get(item_code, 0) / 4  # avg per month
-    stock_qty = stock_info['akhir']
-    months_of_stock = stock_qty / velocity if velocity > 0 else 999
+stock_by_item = defaultdict(lambda: {'akhir':0, 'in':0, 'out':0, 'nama':''})
+for s in stock:
+    si = stock_by_item[s['item_code']]
+    si['akhir'] += s['akhir']; si['in'] += s['in']; si['out'] += s['out']; si['nama'] = s['nama']
+
+stock_vs_sales_all = []
+for item_code, si in stock_by_item.items():
+    velocity = item_monthly_qty.get(item_code, 0) / 4
+    stock_qty = si['akhir']
+    mos = stock_qty / velocity if velocity > 0 else 999
     status = 'OK'
     if velocity == 0 and stock_qty > 0: status = 'NO_MOVEMENT'
-    elif months_of_stock > 6: status = 'OVERSTOCK'
-    elif months_of_stock < 1: status = 'LOW_STOCK'
-    elif months_of_stock < 2: status = 'WATCH'
-    stock_vs_sales.append({
-        'item': item_code, 'nama': stock_info['nama'],
+    elif mos > 6: status = 'OVERSTOCK'
+    elif mos < 1: status = 'LOW_STOCK'
+    elif mos < 2: status = 'WATCH'
+    stock_vs_sales_all.append({
+        'item': item_code, 'nama': si['nama'],
         'stock': stock_qty, 'velocity': round(velocity, 1),
-        'mos': round(min(months_of_stock, 999), 1), 'status': status,
-        'sales_rev': item_rev.get(item_code, 0),
+        'mos': round(min(mos, 999), 1), 'status': status,
     })
 
-sv_status = defaultdict(int)
-for s in stock_vs_sales:
-    sv_status[s['status']] += 1
-
-# Sort: problems first
-priority = {'LOW_STOCK':0, 'WATCH':1, 'OVERSTOCK':2, 'NO_MOVEMENT':3, 'OK':4}
-stock_vs_sales.sort(key=lambda x: (priority.get(x['status'],5), -x['sales_rev']))
-
 # ============================================================
-# 6. GENERATE DASHBOARD JSON
+# GENERATE FILTERABLE DASHBOARD JSON
 # ============================================================
 print("Generating dashboard JSON...")
-total_rev_25 = sum(s['jumlah'] for s in sales if s['tahun']==2025)
-total_rev_26 = sum(s['jumlah'] for s in sales if s['tahun']==2026)
+
+# Helper: aggregate sales with optional filters
+def agg_sales(branch=None, months=None, supplier=None):
+    """Aggregate sales data with optional filters. Returns dict with all aggregations."""
+    filtered = sales
+    if branch:
+        filtered = [s for s in filtered if s['cabang'] == branch]
+    if months:
+        filtered = [s for s in filtered if s['bulan'] in months]
+    # Supplier filter: map supplier → item codes via procurement
+    if supplier:
+        sup_items = set(p['kode'] for p in proc if p['supplier'] == supplier)
+        filtered = [s for s in filtered if s['item'] in sup_items]
+
+    total_25 = sum(s['jumlah'] for s in filtered if s['tahun']==2025)
+    total_26 = sum(s['jumlah'] for s in filtered if s['tahun']==2026)
+
+    # Monthly
+    monthly = {'2025': defaultdict(float), '2026': defaultdict(float)}
+    for s in filtered:
+        monthly[str(s['tahun'])][s['bulan']] += s['jumlah']
+
+    # Branch
+    br = defaultdict(lambda: {'rev25':0,'rev26':0})
+    for s in filtered:
+        if s['tahun']==2025: br[s['cabang']]['rev25'] += s['jumlah']
+        else: br[s['cabang']]['rev26'] += s['jumlah']
+    br_sorted = sorted(br.items(), key=lambda x: x[1]['rev25'], reverse=True)
+
+    # Product groups
+    gr = defaultdict(float)
+    for s in filtered:
+        gr[s['grup_item']] += s['jumlah']
+    gr_sorted = sorted(gr.items(), key=lambda x: x[1], reverse=True)[:12]
+
+    # Items
+    it_rev = defaultdict(float)
+    it_qty = defaultdict(float)
+    it_name = {}
+    for s in filtered:
+        it_rev[s['item']] += s['jumlah']
+        it_qty[s['item']] += s['qty']
+        if s['keterangan']: it_name[s['item']] = s['keterangan']
+    top_items = sorted(it_rev.items(), key=lambda x: x[1], reverse=True)[:15]
+
+    # Customers
+    cu = defaultdict(float)
+    cu_name = {}
+    for s in filtered:
+        if s['kode_pelanggan']:
+            cu[s['kode_pelanggan']] += s['jumlah']
+            cu_name[s['kode_pelanggan']] = s['pelanggan']
+    top_custs = sorted(cu.items(), key=lambda x: x[1], reverse=True)[:20]
+
+    # LOB
+    lo = defaultdict(float)
+    for s in filtered:
+        lo[s['lob']] += s['jumlah']
+    lo_sorted = sorted(lo.items(), key=lambda x: x[1], reverse=True)
+
+    return {
+        'total25': total_25, 'total26': total_26,
+        'monthly': {'labels': month_order, 'y2025': [monthly['2025'].get(m,0) for m in month_order], 'y2026': [monthly['2026'].get(m,0) for m in month_order]},
+        'branches': {'labels':[b[0] for b in br_sorted],'rev25':[b[1]['rev25'] for b in br_sorted],'rev26':[b[1]['rev26'] for b in br_sorted]},
+        'products': {'labels':[item_map.get(g[0],{}).get('group',g[0])[:15] for g in gr_sorted],'values':[g[1] for g in gr_sorted]},
+        'items': [{'kode':i[0],'nama':it_name.get(i[0],i[0])[:40],'revenue':i[1],'qty':it_qty[i[0]]} for i in top_items],
+        'customers': [{'kode':c[0],'nama':cu_name.get(c[0],'')[:30],'revenue':c[1]} for c in top_custs],
+        'lob': {'labels':[l[0] for l in lo_sorted],'values':[l[1] for l in lo_sorted]},
+    }
+
+# Pre-compute default (all data)
+default_sales = agg_sales()
+
+# Pre-compute per-branch aggregations (for fast filter response)
+branch_sales_cache = {}
+for br in all_branches:
+    branch_sales_cache[br] = agg_sales(branch=br)
+
+# Pre-compute per-month aggregations
+month_sales_cache = {}
+for m in all_months:
+    month_sales_cache[m] = agg_sales(months=[m])
+
+# ============================================================
+# PROCUREMENT aggregation with filters
+# ============================================================
+def agg_procurement(supplier=None, region=None):
+    filtered = [p for p in proc if p['status']!='Batal']
+    if supplier:
+        filtered = [p for p in filtered if p['supplier'] == supplier]
+    if region:
+        filtered = [p for p in filtered if p['reg'] == region]
+
+    status_count = defaultdict(int)
+    by_reg = defaultdict(lambda: {'count':0,'nilai':0,'berat':0})
+    by_sup = defaultdict(lambda: {'count':0,'nilai':0})
+    by_kat = defaultdict(lambda: {'count':0,'nilai':0})
+    for p in filtered:
+        status_count[p['status']] += 1
+        r = by_reg[p['reg']]; r['count']+=1; r['nilai']+=p['nilai_beli']; r['berat']+=p['total_berat']
+        by_sup[p['supplier']]['count']+=1; by_sup[p['supplier']]['nilai']+=p['nilai_beli']
+        by_kat[p['kategori']]['count']+=1; by_kat[p['kategori']]['nilai']+=p['nilai_beli']
+
+    sup_sorted = sorted(by_sup.items(), key=lambda x: x[1]['nilai'], reverse=True)[:10]
+    kat_sorted = sorted(by_kat.items(), key=lambda x: x[1]['nilai'], reverse=True)[:10]
+    reg_sorted = sorted(by_reg.items(), key=lambda x: x[1]['nilai'], reverse=True)
+
+    return {
+        'total': len(filtered),
+        'nilai': sum(p['nilai_beli'] for p in filtered),
+        'pipeline': {'labels':['Estimasi Supply','Disetujui Manager','Perjalanan','Sudah Diterima'],'values':[status_count.get(s,0) for s in ['Estimasi Supply','Disetujui Manager','Perjalanan','Sudah Diterima']]},
+        'regions': {'labels':[r[0] for r in reg_sorted],'count':[r[1]['count'] for r in reg_sorted],'nilai':[r[1]['nilai'] for r in reg_sorted],'berat':[r[1]['berat'] for r in reg_sorted]},
+        'suppliers': {'labels':[s[0][:25] for s in sup_sorted],'count':[s[1]['count'] for s in sup_sorted],'nilai':[s[1]['nilai'] for s in sup_sorted]},
+        'categories': {'labels':[k[0] for k in kat_sorted],'count':[k[1]['count'] for k in kat_sorted],'nilai':[k[1]['nilai'] for k in kat_sorted]},
+    }
+
+default_proc = agg_procurement()
+
+# ============================================================
+# STOCK aggregation with filters
+# ============================================================
+def agg_stock(branch=None):
+    filtered = stock
+    if branch:
+        filtered = [s for s in stock if s['cabang'] == branch]
+
+    by_branch = defaultdict(lambda: {'items':0,'akhir':0,'in':0,'out':0})
+    by_item = defaultdict(lambda: {'akhir':0,'in':0,'out':0,'nama':''})
+    for s in filtered:
+        b = by_branch[s['cabang']]; b['items']+=1; b['akhir']+=s['akhir']; b['in']+=s['in']; b['out']+=s['out']
+        si = by_item[s['item_code']]; si['akhir']+=s['akhir']; si['in']+=s['in']; si['out']+=s['out']; si['nama']=s['nama']
+
+    br_sorted = sorted(by_branch.items(), key=lambda x: x[1]['akhir'], reverse=True)
+    top_items = sorted(by_item.items(), key=lambda x: x[1]['akhir'], reverse=True)[:20]
+
+    return {
+        'branches': {'labels':[b[0] for b in br_sorted],'items':[b[1]['items'] for b in br_sorted],'akhir':[b[1]['akhir'] for b in br_sorted],'masuk':[b[1]['in'] for b in br_sorted],'keluar':[b[1]['out'] for b in br_sorted]},
+        'items': [{'item':s[0],'nama':s[1]['nama'][:40],'akhir':s[1]['akhir'],'masuk':s[1]['in'],'keluar':s[1]['out']} for s in top_items],
+    }
+
+default_stock = agg_stock()
+
+# ============================================================
+# COMPILE FINAL JSON
+# ============================================================
+# KPIs
 kpis = {
-    'rev2025': total_rev_25,
-    'rev2026': total_rev_26,
-    'rev2026_ann': total_rev_26 / 4 * 12,
-    'growth': round((total_rev_26/4*12 / total_rev_25 - 1) * 100, 1) if total_rev_25 else 0,
+    'rev2025': default_sales['total25'],
+    'rev2026': default_sales['total26'],
+    'rev2026_ann': default_sales['total26'] / 4 * 12,
+    'growth': round((default_sales['total26']/4*12 / default_sales['total25'] - 1) * 100, 1) if default_sales['total25'] else 0,
     'customers': len(set(s['kode_pelanggan'] for s in sales if s['kode_pelanggan'])),
     'skus': len(set(s['item'] for s in sales)),
     'branches': len(set(s['cabang'] for s in sales)),
@@ -241,67 +318,46 @@ kpis = {
     'po_suppliers': len(set(p['supplier'] for p in proc if p['status']!='Batal')),
 }
 
-grup_nama_map = {
-    '01TRP':'Triplek','02GRC':'GRC Board','03PKU':'Paku','04KB':'Kawat',
-    '05SGG':'Seng','05TLG':'Talang','06HL':'Hollow','08TRMK':'Triplek MRK',
-    '08SPDK':'Spandek','10PMP':'Pipa PVC','10PGLW':'Pipa Galv',
-    '15BJR':'Baja Ringan','16BL':'Bata Ringan','19LMF':'Lem Fox',
-    '20DJ':'Djabesmen','28GPSM':'Gypsum','30KBL':'Kabel','35ASPL':'Aspal',
-}
+# SV summary
+sv_summary = defaultdict(int)
+for s in stock_vs_sales_all:
+    sv_summary[s['status']] += 1
 
-grup_sorted = sorted(grup_rev.items(), key=lambda x: x[1], reverse=True)[:12]
-branch_sorted = sorted(branch_rev.items(), key=lambda x: x[1]['rev25'], reverse=True)
-top_items_list = sorted(item_rev.items(), key=lambda x: x[1], reverse=True)[:15]
-sorted_custs = sorted(cust_rev.items(), key=lambda x: x[1], reverse=True)
-
-# Pareto
-total_cust_rev = sum(cust_rev.values())
-cum = 0
-pareto_points = []
-for i, (k, v) in enumerate(sorted_custs):
-    cum += v
-    if i < 20 or i % 50 == 0 or i == len(sorted_custs)-1:
-        pareto_points.append({'pctCust':round((i+1)/len(sorted_custs)*100,1),'pctRev':round(cum/total_cust_rev*100,1)})
-
-lob_sorted_list = sorted(lob_rev.items(), key=lambda x: x[1], reverse=True)
-
-# Stock
-stock_branch_sorted = sorted(stock_by_branch.items(), key=lambda x: x[1]['akhir'], reverse=True)
-top_stock = sorted(stock_by_item.items(), key=lambda x: x[1]['akhir'], reverse=True)[:20]
-
-# Procurement
-proc_reg_sorted = sorted(proc_by_reg.items(), key=lambda x: x[1]['nilai'], reverse=True)
-proc_sup_sorted = sorted(proc_by_supplier.items(), key=lambda x: x[1]['nilai'], reverse=True)[:10]
-proc_kat_sorted = sorted(proc_by_kategori.items(), key=lambda x: x[1]['nilai'], reverse=True)[:10]
+# Stock vs sales items (problems only, sorted by priority)
+priority = {'LOW_STOCK':0, 'WATCH':1, 'OVERSTOCK':2, 'NO_MOVEMENT':3, 'OK':4}
+sv_items = sorted([s for s in stock_vs_sales_all if s['status']!='OK'], key=lambda x: (priority.get(x['status'],5), -x.get('sales_rev',0)))[:50]
+# Add sales_rev to sv_items
+item_rev_map = defaultdict(float)
+for s in sales:
+    item_rev_map[s['item']] += s['jumlah']
+for sv in sv_items:
+    sv['sales_rev'] = item_rev_map.get(sv['item'], 0)
 
 dashboard = {
+    'filters': {
+        'branches': all_branches,
+        'months': all_months,
+        'suppliers': all_suppliers,
+    },
     'kpis': kpis,
-    'monthly': {'labels': month_order, 'y2025': [monthly_rev['2025'].get(m,0) for m in month_order], 'y2026': [monthly_rev['2026'].get(m,0) for m in month_order]},
-    'branches': {'labels':[b[0] for b in branch_sorted],'rev25':[b[1]['rev25'] for b in branch_sorted],'rev26':[b[1]['rev26'] for b in branch_sorted]},
-    'products': {'labels':[grup_nama_map.get(g[0],g[0]) for g in grup_sorted],'values':[g[1] for g in grup_sorted]},
-    'items': [{'kode':i[0],'nama':item_name.get(i[0],i[0])[:45],'revenue':i[1],'qty':item_qty[i[0]]} for i in top_items_list],
-    'customers': [{'kode':c[0],'nama':cust_name.get(c[0],'')[:30],'revenue':c[1]} for c in sorted_custs[:20]],
-    'pareto': pareto_points,
-    'lob': {'labels':[l[0] for l in lob_sorted_list],'values':[l[1] for l in lob_sorted_list]},
-    'stock': {
-        'branches': {'labels':[b[0] for b in stock_branch_sorted],'items':[b[1]['items'] for b in stock_branch_sorted],'akhir':[b[1]['akhir'] for b in stock_branch_sorted],'masuk':[b[1]['in'] for b in stock_branch_sorted],'keluar':[b[1]['out'] for b in stock_branch_sorted]},
-        'items': [{'item':s[0],'nama':s[1]['nama'][:40],'akhir':s[1]['akhir'],'masuk':s[1]['in'],'keluar':s[1]['out']} for s in top_stock],
-        'vs_sales': {'summary': dict(sv_status), 'items': [s for s in stock_vs_sales if s['status']!='OK'][:50]},
+    'default': {
+        'sales': default_sales,
+        'stock': default_stock,
+        'procurement': default_proc,
+        'stock_vs_sales': {'summary': dict(sv_summary), 'items': sv_items},
     },
-    'procurement': {
-        'pipeline': {'labels':['Estimasi Supply','Disetujui Manager','Perjalanan','Sudah Diterima'],'values':[proc_status.get(s,0) for s in ['Estimasi Supply','Disetujui Manager','Perjalanan','Sudah Diterima']]},
-        'regions': {'labels':[r[0] for r in proc_reg_sorted],'count':[r[1]['count'] for r in proc_reg_sorted],'nilai':[r[1]['nilai'] for r in proc_reg_sorted],'berat':[r[1]['berat'] for r in proc_reg_sorted]},
-        'suppliers': {'labels':[s[0][:25] for s in proc_sup_sorted],'count':[s[1]['count'] for s in proc_sup_sorted],'nilai':[s[1]['nilai'] for s in proc_sup_sorted]},
-        'categories': {'labels':[k[0] for k in proc_kat_sorted],'count':[k[1]['count'] for k in proc_kat_sorted],'nilai':[k[1]['nilai'] for k in proc_kat_sorted]},
-    },
+    # Pre-computed per-branch caches for fast filtering
+    'branch_cache': branch_sales_cache,
+    'month_cache': month_sales_cache,
 }
 
 out_path = '/root/sna-dashboard/dashboard_data.json'
 with open(out_path, 'w') as f:
     json.dump(dashboard, f)
 
-print(f"\n✅ Dashboard JSON: {os.path.getsize(out_path):,} bytes")
-print(f"Sales: {len(sales)} rows, Rev25=Rp{kpis['rev2025']/1e9:.1f}B, Rev26=Rp{kpis['rev2026']/1e9:.1f}B, Growth={kpis['growth']}%")
-print(f"Stock: {kpis['stock_items']} items, {kpis['stock_unique']} unique SKUs")
-print(f"PO: {kpis['po_total']} rows, Rp{kpis['po_nilai']/1e9:.1f}B")
-print(f"Stock vs Sales: {dict(sv_status)}")
+size = os.path.getsize(out_path)
+print(f"\n✅ Dashboard JSON: {size:,} bytes ({size/1024:.0f} KB)")
+print(f"Filters: {len(all_branches)} branches, {len(all_months)} months, {len(all_suppliers)} suppliers")
+print(f"Sales: {len(sales)} rows")
+print(f"Branch cache: {len(branch_sales_cache)} entries")
+print(f"Month cache: {len(month_sales_cache)} entries")

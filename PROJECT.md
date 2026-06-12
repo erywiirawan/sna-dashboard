@@ -61,10 +61,11 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 ## Roadmap
 - [x] Sales dashboard (2025+2026)
 - [x] Deploy ke Vercel
-- [ ] Tab Stock vs Sales (slow-moving, overstock, stockout risk)
-- [ ] Tab Inventory Movement (IN/OUT per branch, turnover)
-- [ ] Tab Supply Planning (reorder suggestion)
-- [ ] Gabung semua data sources
+- [x] Tab Stock (stock per branch, stock vs sales velocity)
+- [x] Tab Procurement (PO pipeline, supplier performance)
+- [x] Tab Supply Chain Overview (cross-reference)
+- [ ] Refine: filters per branch/bulan, drill-down
+- [ ] Auto-refresh data dari Google Sheets
 
 ## Change Log
 | Date | Change |
@@ -72,3 +73,4 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 | 2026-06-12 | Initial: sales dashboard + deploy ke Vercel |
 | 2026-06-12 | Added stock data source (non-cement, 4,226 items) |
 | 2026-06-12 | Created PROJECT.md |
+| 2026-06-12 | Built 4-tab dashboard: Sales + Stock + Procurement + Supply Chain |
