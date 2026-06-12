@@ -30,6 +30,7 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 | Sales 2025 | `2PACX-1vQRMd7QV5MC2cCOjgI0rpEh3-Pu5O7xUTuXxBwuTaix3TsnRuzv6-sGsSg2PiL1IxFy-NJHn3TqGWEG` | `1433429075` | 93,022 rows | ✅ |
 | Sales 2026 YTD | `2PACX-1vRvkbsWaEZy4yoGxkhszQVeaoQ0CSPqeJJpdSiQAnkc-4TtoC51-KXTMD-4W80Gdly5LNmKs5fd8-Ez` | `1613807729` | 34,656 rows | ✅ |
 | Stock List Non Semen | `2PACX-1vRRcU8w42A6Go3p8DqMycMEeFFy43COjIsC0W7yLpnWkjN_YyJgrQ2vyJHz3q7QJUdtxnq2rYFCFls7` | - | 4,226 items | ✅ |
+| Procurement PO | `2PACX-1vTOO_1ht5wm1C8M979gNSgkJI3BM-wuuxxJTmjviNHXyCfaZpfcWz2sN3BdetmEAiRuczUIC1pF8nGZ` | `1218677320` | 5,302 rows | ✅ |
 | *Tambahan* | *menunggu* | - | - | ⏳ |
 
 ## Credentials & Config
