@@ -1,0 +1,95 @@
+{
+  "theme": {
+    "extend": {
+      "colors": {
+        "bg": "#0f1117",
+        "card": "#1a1d29",
+        "border": "#2a2d3a",
+        "text": "#e0e0e0",
+        "dim": "#8888aa",
+        "accent": "#6c5ce7",
+        "accent2": "#00cec9",
+        "green": "#00b894",
+        "red": "#e17055",
+        "orange": "#fdcb6e",
+        "blue": "#74b9ff",
+        "purple": "#a29bfe",
+        "header-from": "#1a1d29",
+        "header-to": "#2d1f3d"
+      },
+      "fontFamily": {
+        "h1": [
+          "'Segoe UI', system-ui, sans-serif"
+        ],
+        "h3": [
+          "'Segoe UI', system-ui, sans-serif"
+        ],
+        "body": [
+          "'Segoe UI', system-ui, sans-serif"
+        ],
+        "label": [
+          "'Segoe UI', system-ui, sans-serif"
+        ],
+        "value-lg": [
+          "'Segoe UI', system-ui, sans-serif"
+        ],
+        "value-md": [
+          "'Segoe UI', system-ui, sans-serif"
+        ]
+      },
+      "fontSize": {
+        "h1": [
+          "20px",
+          {
+            "fontWeight": "700"
+          }
+        ],
+        "h3": [
+          "13px",
+          {
+            "letterSpacing": "0.02em",
+            "fontWeight": "600"
+          }
+        ],
+        "body": [
+          "13px",
+          {
+            "fontWeight": "400"
+          }
+        ],
+        "label": [
+          "11px",
+          {
+            "letterSpacing": "0.05em",
+            "fontWeight": "400"
+          }
+        ],
+        "value-lg": [
+          "22px",
+          {
+            "fontWeight": "700"
+          }
+        ],
+        "value-md": [
+          "18px",
+          {
+            "fontWeight": "600"
+          }
+        ]
+      },
+      "borderRadius": {
+        "sm": "6px",
+        "md": "8px",
+        "lg": "12px",
+        "xl": "16px"
+      },
+      "spacing": {
+        "xs": "4px",
+        "sm": "8px",
+        "md": "12px",
+        "lg": "16px",
+        "xl": "24px"
+      }
+    }
+  }
+}
