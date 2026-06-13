@@ -15,10 +15,12 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 ```
 /root/sna-dashboard/
 ├── PROJECT.md          # This file
-├── index.html          # Dashboard utama (Chart.js, self-contained)
+├── index.html          # Dashboard utama (Chart.js, self-contained, ~3.6MB embedded JSON)
 ├── chart.min.js        # Chart.js v4.4.0 (local, bukan CDN)
-├── fetch_data.py       # Script fetch + clean data dari Google Sheets
-├── deploy.sh           # Deploy manual ke Vercel
+├── fetch_data.py       # Script fetch + clean data dari Google Sheets → dashboard_data.json
+├── build_dashboard.py  # Embed dashboard_data.json ke index.html
+├── dashboard_data.json # Generated data file (~4MB)
+├── deploy.sh           # Rebuild + deploy ke Vercel
 └── refresh-and-deploy.sh  # Full refresh data + rebuild + deploy
 ```
 
@@ -57,6 +59,10 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 - Indonesian number format: `.` = thousands, `,` = decimal → parse: `replace('.','').replace(',','.')`
 - CSV quoting issue: Google Sheets export punya embedded commas → pakai Python csv module, bukan awk
 - `sna-dashboard-rouge.vercel.app` = production URL (auto-alias)
+- `build_dashboard.py` harus dijalankan SETIAP kali `fetch_data.py` atau `index.html` JS diubah
+- `getActiveFilters()` return `{branch, months, supplier, years}` — `supplier` singular string, bukan array
+- Cache structure: `branch_cache` (per-branch), `month_cache` (per-month), `branch_month_cache` (per-branch-per-month), `supplier_cache` (per-supplier), `supplier_branch_sp` (per-supplier-per-branch salesperson + per-supplier-per-branch-per-month salesperson)
+- `supplier_branch_sp` key format: `supplier_name` → per-branch salesperson data, `supplier_name_months` → per-branch-month salesperson data
 
 ## Roadmap
 - [x] Sales dashboard (2025+2026)
@@ -64,7 +70,12 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 - [x] Tab Stock (stock per branch, stock vs sales velocity)
 - [x] Tab Procurement (PO pipeline, supplier performance)
 - [x] Tab Supply Chain Overview (cross-reference)
-- [ ] Refine: filters per branch/bulan, drill-down
+- [x] Global filter: Branch, Month, Year (multi-select), Supplier
+- [x] Year filter: multi-select checkbox dropdown, YoY growth logic
+- [x] Total SKU accuracy: per-cabang-per-bulan-per-tahun counting
+- [x] KPI: Revenue, YoY Growth, SKU, Top Group Item (4-column grid)
+- [x] Salesperson detail modal on branch bar click (year-aware)
+- [x] Supplier filter → Sales tab (branch_monthly + supplier_branch_sp for modal)
 - [ ] Auto-refresh data dari Google Sheets
 
 ## Change Log
@@ -74,3 +85,11 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 | 2026-06-12 | Added stock data source (non-cement, 4,226 items) |
 | 2026-06-12 | Created PROJECT.md |
 | 2026-06-12 | Built 4-tab dashboard: Sales + Stock + Procurement + Supply Chain |
+| 2026-06-12 | Added global filter bar: Branch, Month, Supplier + pre-computed caches |
+| 2026-06-13 | Added year filter (multi-select checkbox), YoY growth logic |
+| 2026-06-13 | Fixed Total SKU accuracy (per-branch-per-month-per-year counting) |
+| 2026-06-13 | Added build_dashboard.py (embed JSON into HTML) |
+| 2026-06-13 | KPI row: 4-column (Revenue, YoY, SKU, Top Group Item) |
+| 2026-06-13 | Salesperson detail modal on branch click (year-aware, per-branch-per-month) |
+| 2026-06-13 | Supplier filter affects Sales tab: branch_monthly + supplier_branch_sp |
+| 2026-06-13 | Supplier filter affects salesperson modal (supplier_branch_sp cache) |

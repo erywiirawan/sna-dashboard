@@ -66,6 +66,7 @@ for fname, year in [('/tmp/sheet_a.csv', 2025), ('/tmp/sheet_b.csv', 2026)]:
             'qty': parse_num(row[8]),
             'harga': parse_num(row[9]),
             'jumlah': parse_num(row[11]),
+            'sales': row[14].strip() if len(row) > 14 else '',
             'lob': row[17].strip() if len(row) > 17 else '',
             'delivery': row[19].strip() if len(row) > 19 else '',
         })
@@ -181,9 +182,12 @@ def agg_sales(branch=None, months=None, supplier=None):
 
     # Branch
     br = defaultdict(lambda: {'rev25':0,'rev26':0})
+    br_monthly = defaultdict(lambda: defaultdict(lambda: {'rev25':0,'rev26':0}))
     for s in filtered:
         if s['tahun']==2025: br[s['cabang']]['rev25'] += s['jumlah']
         else: br[s['cabang']]['rev26'] += s['jumlah']
+        if s['tahun']==2025: br_monthly[s['cabang']][s['bulan']]['rev25'] += s['jumlah']
+        else: br_monthly[s['cabang']][s['bulan']]['rev26'] += s['jumlah']
     br_sorted = sorted(br.items(), key=lambda x: x[1]['rev25'], reverse=True)
 
     # Product groups
@@ -196,11 +200,15 @@ def agg_sales(branch=None, months=None, supplier=None):
     it_rev = defaultdict(float)
     it_qty = defaultdict(float)
     it_name = {}
+    it_year = defaultdict(set)  # item → set of years
     for s in filtered:
         it_rev[s['item']] += s['jumlah']
         it_qty[s['item']] += s['qty']
+        it_year[s['item']].add(s['tahun'])
         if s['keterangan']: it_name[s['item']] = s['keterangan']
     top_items = sorted(it_rev.items(), key=lambda x: x[1], reverse=True)[:15]
+    total_sku_25 = sum(1 for yrs in it_year.values() if 2025 in yrs)
+    total_sku_26 = sum(1 for yrs in it_year.values() if 2026 in yrs)
 
     # Customers
     cu = defaultdict(float)
@@ -217,14 +225,37 @@ def agg_sales(branch=None, months=None, supplier=None):
         lo[s['lob']] += s['jumlah']
     lo_sorted = sorted(lo.items(), key=lambda x: x[1], reverse=True)
 
+    # Sales by person (per salesperson code)
+    sp = defaultdict(lambda: {'revenue':0,'qty':0,'customers':set(),'cust25':set(),'cust26':set(),'rev25':0,'rev26':0,'qty25':0,'qty26':0})
+    for s in filtered:
+        if s['sales']:
+            sp[s['sales']]['revenue'] += s['jumlah']
+            sp[s['sales']]['qty'] += s['qty']
+            if s['kode_pelanggan']: sp[s['sales']]['customers'].add(s['kode_pelanggan'])
+            if s['tahun']==2025:
+                sp[s['sales']]['rev25'] += s['jumlah']
+                sp[s['sales']]['qty25'] += s['qty']
+                if s['kode_pelanggan']: sp[s['sales']]['cust25'].add(s['kode_pelanggan'])
+            else:
+                sp[s['sales']]['rev26'] += s['jumlah']
+                sp[s['sales']]['qty26'] += s['qty']
+                if s['kode_pelanggan']: sp[s['sales']]['cust26'].add(s['kode_pelanggan'])
+    sp_list = [{'code':k,'revenue':v['revenue'],'qty':v['qty'],'customers':len(v['customers']),'cust25':len(v['cust25']),'cust26':len(v['cust26']),'rev25':v['rev25'],'rev26':v['rev26'],'qty25':v['qty25'],'qty26':v['qty26']} for k,v in sp.items()]
+    sp_list.sort(key=lambda x: x['revenue'], reverse=True)
+
     return {
         'total25': total_25, 'total26': total_26,
         'monthly': {'labels': month_order, 'y2025': [monthly['2025'].get(m,0) for m in month_order], 'y2026': [monthly['2026'].get(m,0) for m in month_order]},
         'branches': {'labels':[b[0] for b in br_sorted],'rev25':[b[1]['rev25'] for b in br_sorted],'rev26':[b[1]['rev26'] for b in br_sorted]},
+        'branch_monthly': {br_name: {m: {'rev25': br_monthly[br_name][m]['rev25'], 'rev26': br_monthly[br_name][m]['rev26']} for m in month_order} for br_name in br_monthly},
         'products': {'labels':[item_map.get(g[0],{}).get('group',g[0])[:15] for g in gr_sorted],'values':[g[1] for g in gr_sorted]},
         'items': [{'kode':i[0],'nama':it_name.get(i[0],i[0])[:40],'revenue':i[1],'qty':it_qty[i[0]]} for i in top_items],
+        'total_sku': len(it_rev),
+        'total_sku_25': total_sku_25,
+        'total_sku_26': total_sku_26,
         'customers': [{'kode':c[0],'nama':cu_name.get(c[0],'')[:30],'revenue':c[1]} for c in top_custs],
         'lob': {'labels':[l[0] for l in lo_sorted],'values':[l[1] for l in lo_sorted]},
+        'salespersons': sp_list[:20],
     }
 
 # Pre-compute default (all data)
@@ -239,6 +270,67 @@ for br in all_branches:
 month_sales_cache = {}
 for m in all_months:
     month_sales_cache[m] = agg_sales(months=[m])
+
+# Pre-compute per-branch-per-month caches (for accurate SKU counts)
+branch_month_cache = {}
+for br in all_branches:
+    branch_month_cache[br] = {}
+    for m in all_months:
+        branch_month_cache[br][m] = agg_sales(branch=br, months=[m])
+
+# Supplier → item codes mapping
+supplier_items = defaultdict(set)
+for p in proc:
+    if p['status'] != 'Batal' and p['supplier'] and p['kode']:
+        supplier_items[p['supplier']].add(p['kode'])
+
+# Pre-compute per-supplier caches (for sales tab supplier filter)
+supplier_sales_cache = {}
+# Per-supplier per-branch salesperson cache
+supplier_branch_sp = {}
+for sup in all_suppliers:
+    sup_codes = supplier_items.get(sup, set())
+    if sup_codes:
+        supplier_sales_cache[sup] = agg_sales(supplier=sup)
+        # Build per-branch salesperson data for this supplier
+        sup_sales = [s for s in sales if s['item'] in sup_codes]
+        br_sp = defaultdict(lambda: defaultdict(lambda: {'revenue':0,'qty':0,'customers':set(),'cust25':set(),'cust26':set(),'rev25':0,'rev26':0,'qty25':0,'qty26':0}))
+        br_month_sp = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {'revenue':0,'qty':0,'customers':set(),'cust25':set(),'cust26':set(),'rev25':0,'rev26':0,'qty25':0,'qty26':0})))
+        for s in sup_sales:
+            if s['sales']:
+                br, m, sp = s['cabang'], s['bulan'], s['sales']
+                br_sp[br][sp]['revenue'] += s['jumlah']
+                br_sp[br][sp]['qty'] += s['qty']
+                if s['kode_pelanggan']: br_sp[br][sp]['customers'].add(s['kode_pelanggan'])
+                br_month_sp[br][m][sp]['revenue'] += s['jumlah']
+                br_month_sp[br][m][sp]['qty'] += s['qty']
+                if s['kode_pelanggan']: br_month_sp[br][m][sp]['customers'].add(s['kode_pelanggan'])
+                if s['tahun']==2025:
+                    br_sp[br][sp]['rev25'] += s['jumlah']; br_sp[br][sp]['qty25'] += s['qty']
+                    if s['kode_pelanggan']: br_sp[br][sp]['cust25'].add(s['kode_pelanggan'])
+                    br_month_sp[br][m][sp]['rev25'] += s['jumlah']; br_month_sp[br][m][sp]['qty25'] += s['qty']
+                    if s['kode_pelanggan']: br_month_sp[br][m][sp]['cust25'].add(s['kode_pelanggan'])
+                else:
+                    br_sp[br][sp]['rev26'] += s['jumlah']; br_sp[br][sp]['qty26'] += s['qty']
+                    if s['kode_pelanggan']: br_sp[br][sp]['cust26'].add(s['kode_pelanggan'])
+                    br_month_sp[br][m][sp]['rev26'] += s['jumlah']; br_month_sp[br][m][sp]['qty26'] += s['qty']
+                    if s['kode_pelanggan']: br_month_sp[br][m][sp]['cust26'].add(s['kode_pelanggan'])
+        # Convert sets to counts
+        sup_br = {}
+        for br_name, sp_dict in br_sp.items():
+            sp_list = [{'code':k,'revenue':v['revenue'],'qty':v['qty'],'customers':len(v['customers']),'cust25':len(v['cust25']),'cust26':len(v['cust26']),'rev25':v['rev25'],'rev26':v['rev26'],'qty25':v['qty25'],'qty26':v['qty26']} for k,v in sp_dict.items()]
+            sp_list.sort(key=lambda x: x['revenue'], reverse=True)
+            sup_br[br_name] = sp_list
+        supplier_branch_sp[sup] = sup_br
+        # Also store branch-month salesperson data
+        sup_br_month = {}
+        for br_name, months_dict in br_month_sp.items():
+            sup_br_month[br_name] = {}
+            for m_name, sp_dict in months_dict.items():
+                sp_list = [{'code':k,'revenue':v['revenue'],'qty':v['qty'],'customers':len(v['customers']),'cust25':len(v['cust25']),'cust26':len(v['cust26']),'rev25':v['rev25'],'rev26':v['rev26'],'qty25':v['qty25'],'qty26':v['qty26']} for k,v in sp_dict.items()]
+                sp_list.sort(key=lambda x: x['revenue'], reverse=True)
+                sup_br_month[br_name][m_name] = {'salespersons': sp_list}
+        supplier_branch_sp[sup + '_months'] = sup_br_month
 
 # ============================================================
 # PROCUREMENT aggregation with filters
@@ -333,11 +425,14 @@ for s in sales:
 for sv in sv_items:
     sv['sales_rev'] = item_rev_map.get(sv['item'], 0)
 
+supplier_items_map = {k: list(v) for k, v in supplier_items.items()}
+
 dashboard = {
     'filters': {
         'branches': all_branches,
         'months': all_months,
         'suppliers': all_suppliers,
+        'supplier_items': supplier_items_map,
     },
     'kpis': kpis,
     'default': {
@@ -349,6 +444,9 @@ dashboard = {
     # Pre-computed per-branch caches for fast filtering
     'branch_cache': branch_sales_cache,
     'month_cache': month_sales_cache,
+    'branch_month_cache': branch_month_cache,
+    'supplier_cache': supplier_sales_cache,
+    'supplier_branch_sp': supplier_branch_sp,
 }
 
 out_path = '/root/sna-dashboard/dashboard_data.json'
