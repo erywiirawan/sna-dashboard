@@ -27,9 +27,18 @@ def load_csv(path):
 print("Loading master data...")
 items_raw = load_csv('/root/master_list_items.csv')
 item_map = {}
+group_name_map = {}
+class_name_map = {}
+item_class_map = {}  # item_code → class_code
 for row in items_raw[1:]:
     if len(row) >= 5:
         item_map[row[0].strip()] = {'nama':row[1].strip(),'group':row[3].strip()}
+    if len(row) >= 6 and row[4].strip() and row[5].strip():
+        group_name_map[row[4].strip()] = row[5].strip()
+    if len(row) >= 8 and row[6].strip() and row[7].strip():
+        class_name_map[row[6].strip()] = row[7].strip()
+    if len(row) >= 7 and row[1].strip() and row[6].strip():
+        item_class_map[row[1].strip()] = row[6].strip()
 
 # ============================================================
 # SALES DATA
@@ -192,8 +201,24 @@ def agg_sales(branch=None, months=None, supplier=None):
 
     # Product groups
     gr = defaultdict(float)
+    # Per-group class breakdown
+    gr_class = defaultdict(lambda: defaultdict(float))
+    # Year-specific product groups
+    gr_25 = defaultdict(float)
+    gr_26 = defaultdict(float)
+    gr_class_25 = defaultdict(lambda: defaultdict(float))
+    gr_class_26 = defaultdict(lambda: defaultdict(float))
     for s in filtered:
         gr[s['grup_item']] += s['jumlah']
+        cls = item_class_map.get(s['item'], '')
+        if cls:
+            gr_class[s['grup_item']][cls] += s['jumlah']
+        if s['tahun']==2025:
+            gr_25[s['grup_item']] += s['jumlah']
+            if cls: gr_class_25[s['grup_item']][cls] += s['jumlah']
+        else:
+            gr_26[s['grup_item']] += s['jumlah']
+            if cls: gr_class_26[s['grup_item']][cls] += s['jumlah']
     gr_sorted = sorted(gr.items(), key=lambda x: x[1], reverse=True)[:12]
 
     # Items
@@ -248,7 +273,10 @@ def agg_sales(branch=None, months=None, supplier=None):
         'monthly': {'labels': month_order, 'y2025': [monthly['2025'].get(m,0) for m in month_order], 'y2026': [monthly['2026'].get(m,0) for m in month_order]},
         'branches': {'labels':[b[0] for b in br_sorted],'rev25':[b[1]['rev25'] for b in br_sorted],'rev26':[b[1]['rev26'] for b in br_sorted]},
         'branch_monthly': {br_name: {m: {'rev25': br_monthly[br_name][m]['rev25'], 'rev26': br_monthly[br_name][m]['rev26']} for m in month_order} for br_name in br_monthly},
-        'products': {'labels':[item_map.get(g[0],{}).get('group',g[0])[:15] for g in gr_sorted],'values':[g[1] for g in gr_sorted]},
+        'products': {'labels':[g[0] for g in gr_sorted],'values':[g[1] for g in gr_sorted],'classes':{g[0]:dict(sorted(gr_class.get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in gr_sorted},
+            'values25':[gr_25.get(g[0],0) for g in gr_sorted],'values26':[gr_26.get(g[0],0) for g in gr_sorted],
+            'classes25':{g[0]:dict(sorted(gr_class_25.get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in gr_sorted},
+            'classes26':{g[0]:dict(sorted(gr_class_26.get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in gr_sorted}},
         'items': [{'kode':i[0],'nama':it_name.get(i[0],i[0])[:40],'revenue':i[1],'qty':it_qty[i[0]]} for i in top_items],
         'total_sku': len(it_rev),
         'total_sku_25': total_sku_25,
@@ -433,6 +461,8 @@ dashboard = {
         'months': all_months,
         'suppliers': all_suppliers,
         'supplier_items': supplier_items_map,
+        'group_names': group_name_map,
+        'class_names': class_name_map,
     },
     'kpis': kpis,
     'default': {

@@ -76,6 +76,9 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 - [x] KPI: Revenue, YoY Growth, SKU, Top Group Item (4-column grid)
 - [x] Salesperson detail modal on branch bar click (year-aware)
 - [x] Supplier filter → Sales tab (branch_monthly + supplier_branch_sp for modal)
+- [x] Group Name display (Top Group Item card + Top 10 Produk chart)
+- [x] Top Group Item clickable → Class Name detail modal (year-aware)
+- [x] Year filter → Products/Group/Class breakdown (values25/26, classes25/26)
 - [ ] Auto-refresh data dari Google Sheets
 
 ## Change Log
@@ -93,3 +96,6 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 | 2026-06-13 | Salesperson detail modal on branch click (year-aware, per-branch-per-month) |
 | 2026-06-13 | Supplier filter affects Sales tab: branch_monthly + supplier_branch_sp |
 | 2026-06-13 | Supplier filter affects salesperson modal (supplier_branch_sp cache) |
+| 2026-06-13 | Group Name display: group_name_map + class_name_map in data |
+| 2026-06-13 | Top Group Item clickable → Class Name detail modal |
+| 2026-06-13 | Year filter → Products/Group/Class breakdown (values25/26, classes25/26) |
