@@ -360,6 +360,20 @@ for sup in all_suppliers:
                 sup_br_month[br_name][m_name] = {'salespersons': sp_list}
         supplier_branch_sp[sup + '_months'] = sup_br_month
 
+# Pre-compute per-supplier-per-branch sales cache
+# Only for branch+supplier combos that have data
+supplier_branch_cache = {}
+for sup in all_suppliers:
+    sup_codes = supplier_items.get(sup, set())
+    if not sup_codes:
+        continue
+    # Find which branches have sales for this supplier's items
+    sup_branches = set(s['cabang'] for s in sales if s['item'] in sup_codes and s['cabang'])
+    if sup_branches:
+        supplier_branch_cache[sup] = {}
+        for br in sup_branches:
+            supplier_branch_cache[sup][br] = agg_sales(branch=br, supplier=sup)
+
 # ============================================================
 # PROCUREMENT aggregation with filters
 # ============================================================
@@ -477,6 +491,7 @@ dashboard = {
     'branch_month_cache': branch_month_cache,
     'supplier_cache': supplier_sales_cache,
     'supplier_branch_sp': supplier_branch_sp,
+    'supplier_branch_cache': supplier_branch_cache,
 }
 
 out_path = '/root/sna-dashboard/dashboard_data.json'
