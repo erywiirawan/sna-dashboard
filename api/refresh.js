@@ -1,9 +1,8 @@
-// Vercel Serverless Function: Manual refresh trigger
-// Writes a flag file to GitHub, picked up by Hermes cron job within 5 min
-
+// Vercel Serverless Function: Trigger data refresh on VPS
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   // GET: status check
@@ -11,35 +10,44 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       status: 'ready',
-      message: 'Data di-refresh otomatis setiap hari jam 06:00 WIB.',
-      nextRefresh: '06:00 WIB'
+      message: 'Klik Refresh Data untuk update data dari Google Sheets.',
     });
   }
 
-  // POST: manual refresh trigger via Hermes cron
+  // POST: trigger refresh via VPS webhook
   if (req.method === 'POST') {
-    const HERMES_URL = process.env.HERMES_URL;
-    const HERMES_KEY = process.env.HERMES_KEY;
-    
-    if (HERMES_URL && HERMES_KEY) {
-      try {
-        const r = await fetch(HERMES_URL, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${HERMES_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'run', job_id: '3438baacd2b7' }),
-          signal: AbortSignal.timeout(10000)
+    const WEBHOOK_URL = process.env.WEBHOOK_URL || 'http://43.134.103.128:20128/sna-refresh';
+    const WEBHOOK_KEY = process.env.WEBHOOK_KEY || 'sna-refresh-2026';
+
+    try {
+      const r = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${WEBHOOK_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+
+      const data = await r.json();
+
+      if (r.ok && data.ok) {
+        return res.status(200).json({
+          ok: true,
+          message: 'Refresh dimulai! Data akan update dalam ~2 menit. Halaman akan otomatis refresh.',
         });
-        if (r.ok) {
-          return res.status(200).json({ ok: true, message: 'Refresh triggered! Dashboard akan update ~3 menit.' });
-        }
-      } catch (e) {}
+      }
+
+      return res.status(r.status).json({
+        ok: false,
+        message: data.error || 'Refresh gagal',
+      });
+    } catch (e) {
+      return res.status(502).json({
+        ok: false,
+        message: 'Gagal menghubungi server refresh: ' + e.message,
+      });
     }
-    
-    return res.status(200).json({
-      ok: true,
-      message: 'Refresh terjadwal: setiap hari jam 06:00 WIB. Untuk refresh manual, hubungi admin.',
-      scheduled: true
-    });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

@@ -113,3 +113,6 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 | 2026-06-19 | GitHub Action workflow: `.github/workflows/refresh-data.yml` (scheduled daily 06:00 WIB + manual trigger) |
 | 2026-06-19 | Feat: Refresh Data button in dashboard + auto-refresh daily 06:00 WIB via Hermes cron |
 | 2026-06-19 | Webhook service on port 20129 (refresh-webhook.py) + Vercel serverless proxy (/api/refresh) |
+| 2026-06-19 | Fix: Refresh button actually triggers refresh — nginx proxy on :20128→:20129, 9router→:20130 |
+| 2026-06-19 | Webhook systemd service (sna-refresh-webhook) for persistence across reboots |
+| 2026-06-19 | Auto-reload after refresh: 120s countdown then page reload with fresh data |

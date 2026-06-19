@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fetch & process all SNA data sources into dashboard JSON with filter support."""
-import csv, json, os
+import csv, json, os, subprocess
 from collections import defaultdict
 
 def parse_num(s):
@@ -21,6 +21,40 @@ def load_csv(path):
     with open(path, 'r', encoding='utf-8', errors='replace') as f:
         return list(csv.reader(f))
 
+def download_csv(url, dest):
+    """Download CSV from Google Sheets published URL."""
+    print(f"  Downloading → {dest}")
+    r = subprocess.run(['curl', '-sL', '--max-time', '60', url],
+                       capture_output=True, timeout=90)
+    if r.returncode != 0:
+        print(f"  ⚠️  Download failed for {dest}, using cached version")
+        return False
+    with open(dest, 'wb') as f:
+        f.write(r.stdout)
+    print(f"  ✅ {dest} ({len(r.stdout):,} bytes)")
+    return True
+
+# ============================================================
+# DOWNLOAD ALL DATA FROM GOOGLE SHEETS
+# ============================================================
+print("Downloading data from Google Sheets...")
+
+SHEETS = {
+    'master': ('https://docs.google.com/spreadsheets/d/e/2PACX-1vSplC2GmI4l5uS-8TvtPsKM2rn14mXn-eOMrA-NQ7fi6fdJIh_MFNgXZf9xzBrHcVRhAD_GNeF7M0FG/pub?output=csv',
+               '/root/master_list_items.csv'),
+    'sales_2025': ('https://docs.google.com/spreadsheets/d/e/2PACX-1vQRMd7QV5MC2cCOjgI0rpEh3-Pu5O7xUTuXxBwuTaix3TsnRuzv6-sGsSg2PiL1IxFy-NJHn3TqGWEG/pub?gid=1433429075&single=true&output=csv',
+                   '/tmp/sheet_a.csv'),
+    'sales_2026': ('https://docs.google.com/spreadsheets/d/e/2PACX-1vRvkbsWaEZy4yoGxkhszQVeaoQ0CSPqeJJpdSiQAnkc-4TtoC51-KXTMD-4W80Gdly5LNmKs5fd8-Ez/pub?gid=1613807729&single=true&output=csv',
+                   '/tmp/sheet_b.csv'),
+    'stock': ('https://docs.google.com/spreadsheets/d/e/2PACX-1vRRcU8w42A6Go3p8DqMycMEeFFy43COjIsC0W7yLpnWkjN_YyJgrQ2vyJHz3q7QJUdtxnq2rYFCFls7/pub?output=csv',
+              '/tmp/stock_sheet.csv'),
+    'procurement': ('https://docs.google.com/spreadsheets/d/e/2PACX-1vTOO_1ht5wm1C8M979gNSgkJI3BM-wuuxxJTmjviNHXyCfaZpfcWz2sN3BdetmEAiRuczUIC1pF8nGZ/pub?gid=1218677320&single=true&output=csv',
+                    '/tmp/djabes_sheet.csv'),
+}
+
+for name, (url, dest) in SHEETS.items():
+    download_csv(url, dest)
+
 # ============================================================
 # MASTER DATA
 # ============================================================
@@ -29,6 +63,7 @@ items_raw = load_csv('/root/master_list_items.csv')
 item_map = {}
 group_name_map = {}
 class_name_map = {}
+class_name_votes = defaultdict(lambda: defaultdict(int))  # class_code → {name: count}
 item_class_map = {}  # item_code → class_code
 for row in items_raw[1:]:
     if len(row) >= 5:
@@ -36,9 +71,13 @@ for row in items_raw[1:]:
     if len(row) >= 6 and row[4].strip() and row[5].strip():
         group_name_map[row[4].strip()] = row[5].strip()
     if len(row) >= 8 and row[6].strip() and row[7].strip():
-        class_name_map[row[6].strip()] = row[7].strip()
+        class_name_votes[row[6].strip()][row[7].strip()] += 1
     if len(row) >= 7 and row[1].strip() and row[6].strip():
         item_class_map[row[1].strip()] = row[6].strip()
+
+# Resolve class names: pick the most frequent name per class code
+for code, votes in class_name_votes.items():
+    class_name_map[code] = max(votes, key=votes.get)
 
 # ============================================================
 # SALES DATA
