@@ -60,8 +60,8 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 - CSV quoting issue: Google Sheets export punya embedded commas → pakai Python csv module, bukan awk
 - `sna-dashboard-rouge.vercel.app` = production URL (auto-alias)
 - `build_dashboard.py` harus dijalankan SETIAP kali `fetch_data.py` atau `index.html` JS diubah
-- `getActiveFilters()` return `{branch, months, supplier, years}` — `supplier` singular string, bukan array
-- Cache structure: `branch_cache` (per-branch), `month_cache` (per-month), `branch_month_cache` (per-branch-per-month), `supplier_cache` (per-supplier), `supplier_branch_sp` (per-supplier-per-branch salesperson + per-supplier-per-branch-per-month salesperson)
+- `getActiveFilters()` return `{branches[], months, supplier, years}` — `branches` multi-select array, `supplier` singular string
+- Cache structure: `branch_cache` (per-branch), `month_cache` (per-month), `branch_month_cache` (per-branch-per-month), `supplier_cache` (per-supplier), `supplier_branch_sp` (per-supplier-per-branch salesperson), `supplier_branch_cache` (per-supplier-per-branch full aggregation: monthly, products, SKU, items, customers, LOB)
 - `supplier_branch_sp` key format: `supplier_name` → per-branch salesperson data, `supplier_name_months` → per-branch-month salesperson data
 
 ## Roadmap
@@ -70,8 +70,9 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 - [x] Tab Stock (stock per branch, stock vs sales velocity)
 - [x] Tab Procurement (PO pipeline, supplier performance)
 - [x] Tab Supply Chain Overview (cross-reference)
-- [x] Global filter: Branch, Month, Year (multi-select), Supplier
+- [x] Global filter: Branch (multi-select), Month, Year (multi-select), Supplier
 - [x] Year filter: multi-select checkbox dropdown, YoY growth logic
+- [x] Branch filter: multi-select checkbox dropdown, mergeBranchCaches()
 - [x] Total SKU accuracy: per-cabang-per-bulan-per-tahun counting
 - [x] KPI: Revenue, YoY Growth, SKU, Top Group Item (4-column grid)
 - [x] Salesperson detail modal on branch bar click (year-aware)
@@ -99,3 +100,7 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 | 2026-06-13 | Group Name display: group_name_map + class_name_map in data |
 | 2026-06-13 | Top Group Item clickable → Class Name detail modal |
 | 2026-06-13 | Year filter → Products/Group/Class breakdown (values25/26, classes25/26) |
+| 2026-06-19 | Fix: branch+supplier filter — added `supplier_branch_cache` for per-cabang data |
+| 2026-06-19 | Feat: branch filter multi-select (checkbox dropdown, same pattern as month/year) |
+| 2026-06-19 | Added `mergeBranchCaches()` + `mergeSupplierBranchCaches()` JS functions |
+| 2026-06-19 | Fix: `.branch-container` CSS `position:relative` for dropdown positioning |
