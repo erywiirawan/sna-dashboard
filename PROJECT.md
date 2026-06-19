@@ -108,3 +108,4 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 | 2026-06-19 | Fix: Customer revenue now supplier-specific (supplier_br_month_cust cache) |
 | 2026-06-19 | Format: Revenue values use K/M/B without Rp prefix (fmt() not fmtRp()) |
 | 2026-06-19 | Feat: precise per-month-per-branch items for supplier filter (`_br_month_items` cache) |
+| 2026-06-19 | Fix: Growth YoY, SKU, Top Group not month-filtered in supplier mode (zero non-selected months, recalc SKU from items, `_br_month_products` cache) |
