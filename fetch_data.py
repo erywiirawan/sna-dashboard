@@ -224,6 +224,8 @@ def agg_sales(branch=None, months=None, supplier=None):
     # Items
     it_rev = defaultdict(float)
     it_qty = defaultdict(float)
+    it_rev25 = defaultdict(float)
+    it_rev26 = defaultdict(float)
     it_name = {}
     it_year = defaultdict(set)  # item → set of years
     for s in filtered:
@@ -231,17 +233,23 @@ def agg_sales(branch=None, months=None, supplier=None):
         it_qty[s['item']] += s['qty']
         it_year[s['item']].add(s['tahun'])
         if s['keterangan']: it_name[s['item']] = s['keterangan']
+        if s['tahun']==2025: it_rev25[s['item']] += s['jumlah']
+        else: it_rev26[s['item']] += s['jumlah']
     top_items = sorted(it_rev.items(), key=lambda x: x[1], reverse=True)[:15]
     total_sku_25 = sum(1 for yrs in it_year.values() if 2025 in yrs)
     total_sku_26 = sum(1 for yrs in it_year.values() if 2026 in yrs)
 
     # Customers
     cu = defaultdict(float)
+    cu_rev25 = defaultdict(float)
+    cu_rev26 = defaultdict(float)
     cu_name = {}
     for s in filtered:
         if s['kode_pelanggan']:
             cu[s['kode_pelanggan']] += s['jumlah']
             cu_name[s['kode_pelanggan']] = s['pelanggan']
+            if s['tahun']==2025: cu_rev25[s['kode_pelanggan']] += s['jumlah']
+            else: cu_rev26[s['kode_pelanggan']] += s['jumlah']
     top_custs = sorted(cu.items(), key=lambda x: x[1], reverse=True)[:20]
 
     # LOB
@@ -277,11 +285,11 @@ def agg_sales(branch=None, months=None, supplier=None):
             'values25':[gr_25.get(g[0],0) for g in gr_sorted],'values26':[gr_26.get(g[0],0) for g in gr_sorted],
             'classes25':{g[0]:dict(sorted(gr_class_25.get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in gr_sorted},
             'classes26':{g[0]:dict(sorted(gr_class_26.get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in gr_sorted}},
-        'items': [{'kode':i[0],'nama':it_name.get(i[0],i[0])[:40],'revenue':i[1],'qty':it_qty[i[0]]} for i in top_items],
+        'items': [{'kode':i[0],'nama':it_name.get(i[0],i[0])[:40],'revenue':i[1],'qty':it_qty[i[0]],'rev25':it_rev25.get(i[0],0),'rev26':it_rev26.get(i[0],0)} for i in top_items],
         'total_sku': len(it_rev),
         'total_sku_25': total_sku_25,
         'total_sku_26': total_sku_26,
-        'customers': [{'kode':c[0],'nama':cu_name.get(c[0],'')[:30],'revenue':c[1]} for c in top_custs],
+        'customers': [{'kode':c[0],'nama':cu_name.get(c[0],'')[:30],'revenue':c[1],'rev25':cu_rev25.get(c[0],0),'rev26':cu_rev26.get(c[0],0)} for c in top_custs],
         'lob': {'labels':[l[0] for l in lo_sorted],'values':[l[1] for l in lo_sorted]},
         'salespersons': sp_list[:20],
     }
