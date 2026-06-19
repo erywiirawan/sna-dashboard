@@ -298,12 +298,14 @@ def agg_sales(branch=None, months=None, supplier=None):
     lo_sorted = sorted(lo.items(), key=lambda x: x[1], reverse=True)
 
     # Sales by person (per salesperson code)
-    sp = defaultdict(lambda: {'revenue':0,'qty':0,'customers':set(),'cust25':set(),'cust26':set(),'rev25':0,'rev26':0,'qty25':0,'qty26':0})
+    sp = defaultdict(lambda: {'revenue':0,'qty':0,'customers':set(),'cust25':set(),'cust26':set(),'rev25':0,'rev26':0,'qty25':0,'qty26':0,'cust_rev':defaultdict(float)})
     for s in filtered:
         if s['sales']:
             sp[s['sales']]['revenue'] += s['jumlah']
             sp[s['sales']]['qty'] += s['qty']
-            if s['kode_pelanggan']: sp[s['sales']]['customers'].add(s['kode_pelanggan'])
+            if s['kode_pelanggan']:
+                sp[s['sales']]['customers'].add(s['kode_pelanggan'])
+                sp[s['sales']]['cust_rev'][s['kode_pelanggan']] += s['jumlah']
             if s['tahun']==2025:
                 sp[s['sales']]['rev25'] += s['jumlah']
                 sp[s['sales']]['qty25'] += s['qty']
@@ -312,7 +314,8 @@ def agg_sales(branch=None, months=None, supplier=None):
                 sp[s['sales']]['rev26'] += s['jumlah']
                 sp[s['sales']]['qty26'] += s['qty']
                 if s['kode_pelanggan']: sp[s['sales']]['cust26'].add(s['kode_pelanggan'])
-    sp_list = [{'code':k,'revenue':v['revenue'],'qty':v['qty'],'customers':len(v['customers']),'cust25':len(v['cust25']),'cust26':len(v['cust26']),'rev25':v['rev25'],'rev26':v['rev26'],'qty25':v['qty25'],'qty26':v['qty26']} for k,v in sp.items()]
+    sp_list = [{'code':k,'revenue':v['revenue'],'qty':v['qty'],'customers':len(v['customers']),'cust25':len(v['cust25']),'cust26':len(v['cust26']),'rev25':v['rev25'],'rev26':v['rev26'],'qty25':v['qty25'],'qty26':v['qty26'],
+        'cust_top':[{'kode':c,'nama':cu_name.get(c,''),'revenue':r} for c,r in sorted(v['cust_rev'].items(), key=lambda x:-x[1])[:30]]} for k,v in sp.items()]
     sp_list.sort(key=lambda x: x['revenue'], reverse=True)
 
     return {
