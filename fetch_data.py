@@ -328,7 +328,7 @@ def agg_sales(branch=None, months=None, supplier=None):
         'total_sku': len(it_rev),
         'total_sku_25': total_sku_25,
         'total_sku_26': total_sku_26,
-        'customers': [{'kode':c[0],'nama':cu_name.get(c[0],'')[:30],'revenue':c[1],'rev25':cu_rev25.get(c[0],0),'rev26':cu_rev26.get(c[0],0)} for c in top_custs],
+        'customers': [{'kode':c[0],'nama':cu_name.get(c[0],'')[:30],'revenue':c[1],'rev25':cu_rev25.get(c[0],0),'rev26':cu_rev26.get(c[0],0),'branch':branch or ''} for c in top_custs],
         'lob': {'labels':[l[0] for l in lo_sorted],'values':[l[1] for l in lo_sorted]},
         'salespersons': sp_list[:20],
     }
