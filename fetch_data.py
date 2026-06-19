@@ -320,6 +320,13 @@ for p in proc:
     if p['status'] != 'Batal' and p['supplier'] and p['kode']:
         supplier_items[p['supplier']].add(p['kode'])
 
+# Supplier → customer codes mapping (customers who bought supplier's items)
+supplier_customers = defaultdict(set)
+for s in sales:
+    for sup, codes in supplier_items.items():
+        if s['item'] in codes and s['kode_pelanggan']:
+            supplier_customers[sup].add(s['kode_pelanggan'])
+
 # Pre-compute per-supplier caches (for sales tab supplier filter)
 supplier_sales_cache = {}
 # Per-supplier per-branch salesperson cache
@@ -367,6 +374,26 @@ for sup in all_suppliers:
                 sp_list.sort(key=lambda x: x['revenue'], reverse=True)
                 sup_br_month[br_name][m_name] = {'salespersons': sp_list}
         supplier_branch_sp[sup + '_months'] = sup_br_month
+        # Also store per-branch-per-month customer revenue for this supplier
+        sup_br_month_cust = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {'revenue':0,'rev25':0,'rev26':0})))
+        sup_cust_names = {}
+        for s in sup_sales:
+            if s['kode_pelanggan']:
+                br, m, cu = s['cabang'], s['bulan'], s['kode_pelanggan']
+                sup_br_month_cust[br][m][cu]['revenue'] += s['jumlah']
+                if s['tahun']==2025: sup_br_month_cust[br][m][cu]['rev25'] += s['jumlah']
+                else: sup_br_month_cust[br][m][cu]['rev26'] += s['jumlah']
+                if s['pelanggan']: sup_cust_names[cu] = s['pelanggan'][:30]
+        # Convert to serializable format
+        sbmc = {}
+        for br_name, months in sup_br_month_cust.items():
+            sbmc[br_name] = {}
+            for m_name, custs in months.items():
+                cl = [{'kode':k,'nama':sup_cust_names.get(k,k),'revenue':v['revenue'],'rev25':v['rev25'],'rev26':v['rev26']} for k,v in custs.items()]
+                cl.sort(key=lambda x: x['revenue'], reverse=True)
+                sbmc[br_name][m_name] = cl
+        if sbmc:
+            supplier_branch_sp[sup + '_br_month_cust'] = sbmc
 
 # Pre-compute per-supplier-per-branch sales cache
 # Only for branch+supplier combos that have data
@@ -476,6 +503,7 @@ for sv in sv_items:
     sv['sales_rev'] = item_rev_map.get(sv['item'], 0)
 
 supplier_items_map = {k: list(v) for k, v in supplier_items.items()}
+supplier_customers_map = {k: list(v) for k, v in supplier_customers.items()}
 
 dashboard = {
     'filters': {
@@ -483,6 +511,7 @@ dashboard = {
         'months': all_months,
         'suppliers': all_suppliers,
         'supplier_items': supplier_items_map,
+        'supplier_customers': supplier_customers_map,
         'group_names': group_name_map,
         'class_names': class_name_map,
     },
