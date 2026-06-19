@@ -104,3 +104,6 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 | 2026-06-19 | Feat: branch filter multi-select (checkbox dropdown, same pattern as month/year) |
 | 2026-06-19 | Added `mergeBranchCaches()` + `mergeSupplierBranchCaches()` JS functions |
 | 2026-06-19 | Fix: `.branch-container` CSS `position:relative` for dropdown positioning |
+| 2026-06-19 | Fix: Top 20 Items empty when supplier+branch+month — fallback to supplier_branch_cache items |
+| 2026-06-19 | Fix: Customer revenue now supplier-specific (supplier_br_month_cust cache) |
+| 2026-06-19 | Format: Revenue values use K/M/B without Rp prefix (fmt() not fmtRp()) |
