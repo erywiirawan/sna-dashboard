@@ -413,6 +413,37 @@ for sup in all_suppliers:
                 sbmi[br_name][m_name] = items_list
         if sbmi:
             supplier_branch_sp[sup + '_br_month_items'] = sbmi
+        # Also store per-branch-per-month product group data for this supplier
+        sup_br_month_prods = defaultdict(lambda: defaultdict(lambda: {'gr_rev':defaultdict(float),'gr_rev25':defaultdict(float),'gr_rev26':defaultdict(float),'gr_cls':defaultdict(lambda: defaultdict(float)),'gr_cls25':defaultdict(lambda: defaultdict(float)),'gr_cls26':defaultdict(lambda: defaultdict(float))}))
+        for s in sup_sales:
+            br, m, it = s['cabang'], s['bulan'], s['item']
+            grp = s['grup_item']
+            cls = item_class_map.get(it, '')
+            d = sup_br_month_prods[br][m]
+            d['gr_rev'][grp] += s['jumlah']
+            if cls: d['gr_cls'][grp][cls] += s['jumlah']
+            if s['tahun']==2025:
+                d['gr_rev25'][grp] += s['jumlah']
+                if cls: d['gr_cls25'][grp][cls] += s['jumlah']
+            else:
+                d['gr_rev26'][grp] += s['jumlah']
+                if cls: d['gr_cls26'][grp][cls] += s['jumlah']
+        sbmp = {}
+        for br_name, months in sup_br_month_prods.items():
+            sbmp[br_name] = {}
+            for m_name, d in months.items():
+                groups = sorted(d['gr_rev'].items(), key=lambda x: x[1], reverse=True)
+                sbmp[br_name][m_name] = {
+                    'labels': [g[0] for g in groups],
+                    'values': [d['gr_rev'][g[0]] for g in groups],
+                    'values25': [d['gr_rev25'].get(g[0],0) for g in groups],
+                    'values26': [d['gr_rev26'].get(g[0],0) for g in groups],
+                    'classes': {g[0]: dict(sorted(d['gr_cls'].get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in groups},
+                    'classes25': {g[0]: dict(sorted(d['gr_cls25'].get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in groups},
+                    'classes26': {g[0]: dict(sorted(d['gr_cls26'].get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in groups},
+                }
+        if sbmp:
+            supplier_branch_sp[sup + '_br_month_products'] = sbmp
 
 # Pre-compute per-supplier-per-branch sales cache
 # Only for branch+supplier combos that have data
