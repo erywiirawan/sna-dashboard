@@ -394,6 +394,25 @@ for sup in all_suppliers:
                 sbmc[br_name][m_name] = cl
         if sbmc:
             supplier_branch_sp[sup + '_br_month_cust'] = sbmc
+        # Also store per-branch-per-month items for this supplier
+        sup_br_month_items = defaultdict(lambda: defaultdict(lambda: {'it_rev':defaultdict(float),'it_qty':defaultdict(float),'it_rev25':defaultdict(float),'it_rev26':defaultdict(float),'it_name':{}}))
+        for s in sup_sales:
+            br, m, it = s['cabang'], s['bulan'], s['item']
+            d = sup_br_month_items[br][m]
+            d['it_rev'][it] += s['jumlah']
+            d['it_qty'][it] += s['qty']
+            if s['keterangan']: d['it_name'][it] = s['keterangan']
+            if s['tahun']==2025: d['it_rev25'][it] += s['jumlah']
+            else: d['it_rev26'][it] += s['jumlah']
+        sbmi = {}
+        for br_name, months in sup_br_month_items.items():
+            sbmi[br_name] = {}
+            for m_name, d in months.items():
+                items_list = [{'kode':k,'nama':d['it_name'].get(k,k)[:40],'revenue':d['it_rev'][k],'qty':d['it_qty'][k],'rev25':d['it_rev25'].get(k,0),'rev26':d['it_rev26'].get(k,0)} for k in d['it_rev']]
+                items_list.sort(key=lambda x: x['revenue'], reverse=True)
+                sbmi[br_name][m_name] = items_list
+        if sbmi:
+            supplier_branch_sp[sup + '_br_month_items'] = sbmi
 
 # Pre-compute per-supplier-per-branch sales cache
 # Only for branch+supplier combos that have data
