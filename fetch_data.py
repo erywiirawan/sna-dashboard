@@ -283,10 +283,14 @@ def agg_sales(branch=None, months=None, supplier=None):
     cu_rev25 = defaultdict(float)
     cu_rev26 = defaultdict(float)
     cu_name = {}
+    cu_groups = defaultdict(lambda: defaultdict(float))
+    cu_qty = defaultdict(float)
     for s in filtered:
         if s['kode_pelanggan']:
             cu[s['kode_pelanggan']] += s['jumlah']
             cu_name[s['kode_pelanggan']] = s['pelanggan']
+            cu_groups[s['kode_pelanggan']][s['grup_item']] += s['jumlah']
+            cu_qty[s['kode_pelanggan']] += s['qty']
             if s['tahun']==2025: cu_rev25[s['kode_pelanggan']] += s['jumlah']
             else: cu_rev26[s['kode_pelanggan']] += s['jumlah']
     top_custs = sorted(cu.items(), key=lambda x: x[1], reverse=True)[:20]
@@ -331,7 +335,8 @@ def agg_sales(branch=None, months=None, supplier=None):
         'total_sku': len(it_rev),
         'total_sku_25': total_sku_25,
         'total_sku_26': total_sku_26,
-        'customers': [{'kode':c[0],'nama':cu_name.get(c[0],'')[:30],'revenue':c[1],'rev25':cu_rev25.get(c[0],0),'rev26':cu_rev26.get(c[0],0),'branch':branch or ''} for c in top_custs],
+        'customers': [{'kode':c[0],'nama':cu_name.get(c[0],'')[:30],'revenue':c[1],'qty':cu_qty.get(c[0],0),'rev25':cu_rev25.get(c[0],0),'rev26':cu_rev26.get(c[0],0),'branch':branch or '',
+            'groups':[{'group':g,'revenue':r} for g,r in sorted(cu_groups.get(c[0],{}).items(), key=lambda x:-x[1])[:20]]} for c in top_custs],
         'lob': {'labels':[l[0] for l in lo_sorted],'values':[l[1] for l in lo_sorted]},
         'salespersons': sp_list[:20],
     }
