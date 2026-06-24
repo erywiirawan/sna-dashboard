@@ -29,18 +29,21 @@ json_bytes = json_str.encode('utf-8')
 with open(os.path.join(DASHBOARD_DIR, 'index.html')) as f:
     html = f.read()
 
-# Remove existing password gate if present (from previous build)
-if '<!-- Password Gate -->' in html:
-    gate_start = html.rfind('<!-- Password Gate -->')
-    # Find the matching closing </div> for the overlay
-    overlay_end = html.find('</div><!-- /app -->', gate_start)
-    if overlay_end >= 0:
-        html = html[:gate_start] + html[overlay_end + len('</div><!-- /app -->'):]
+# Remove ALL existing password gates (loop to catch duplicates)
+while '<!-- Password Gate -->' in html:
+    gate_start = html.find('<!-- Password Gate -->')
+    # Find closing </script> after the gate (gate ends with </script>)
+    gate_end = html.find('</script>', gate_start)
+    if gate_end >= 0:
+        html = html[:gate_start] + html[gate_end + len('</script>'):]
+    else:
+        break  # safety: avoid infinite loop
 
 # Remove existing app wrapper if present
 html = html.replace('<div id="app" style="display:none">', '', 1)
-# Remove the matching closing </div><!-- /app --> if still present
-html = html.replace('</div><!-- /app -->', '', 1)
+# Remove the matching closing </div><!-- /app --> if still present (all occurrences)
+while '</div><!-- /app -->' in html:
+    html = html.replace('</div><!-- /app -->', '', 1)
 
 # Inject password gate HTML before </body>
 password_gate = """
@@ -100,6 +103,19 @@ if idx2 >= 0:
 with open(os.path.join(DASHBOARD_DIR, 'index.html'), 'w') as f:
     f.write(html)
 
+# === VALIDATION: check for duplicate IDs ===
+import re as _re
+from collections import Counter as _Counter
+all_ids = _re.findall(r'id="([^"]+)"', html)
+dupes = {k: v for k, v in _Counter(all_ids).items() if v > 1}
+if dupes:
+    print(f'⚠️  DUPLICATE IDs found: {dupes}')
+    print('   Fixing by removing duplicates...')
+    # This should not happen with the while-loop cleanup above
+    # but as a safety net, we fail loudly
+    raise SystemExit('❌ Build failed: duplicate HTML IDs detected')
+
 print(f'✅ Embedded {len(json_bytes):,} bytes of JSON + password gate')
 print(f'   Password: {password}')
+print(f'   Unique IDs: {len(set(all_ids))} — no duplicates ✓')
 print(f'   Change password: edit {PASSWORD_FILE}')
