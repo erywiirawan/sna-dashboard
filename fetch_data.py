@@ -46,7 +46,7 @@ SHEETS = {
                    '/tmp/sheet_a.csv'),
     'sales_2026': ('https://docs.google.com/spreadsheets/d/e/2PACX-1vRvkbsWaEZy4yoGxkhszQVeaoQ0CSPqeJJpdSiQAnkc-4TtoC51-KXTMD-4W80Gdly5LNmKs5fd8-Ez/pub?gid=1613807729&single=true&output=csv',
                    '/tmp/sheet_b.csv'),
-    'stock': ('https://docs.google.com/spreadsheets/d/e/2PACX-1vRRcU8w42A6Go3p8DqMycMEeFFy43COjIsC0W7yLpnWkjN_YyJgrQ2vyJHz3q7QJUdtxnq2rYFCFls7/pub?output=csv',
+    'stock': ('https://docs.google.com/spreadsheets/d/e/2PACX-1vThkIU_NWH2oD3dl8z5Z9f3wTwRBVhAByv7xpQDGXUl9S9iE7IJzjF6JqmqxbSTZ6fEWHXTFdeWIkB9/pub?gid=989268035&single=true&output=csv',
               '/tmp/stock_sheet.csv'),
     'procurement': ('https://docs.google.com/spreadsheets/d/e/2PACX-1vTOO_1ht5wm1C8M979gNSgkJI3BM-wuuxxJTmjviNHXyCfaZpfcWz2sN3BdetmEAiRuczUIC1pF8nGZ/pub?gid=1218677320&single=true&output=csv',
                     '/tmp/djabes_sheet.csv'),
@@ -67,7 +67,7 @@ class_name_votes = defaultdict(lambda: defaultdict(int))  # class_code → {name
 item_class_map = {}  # item_code → class_code
 for row in items_raw[1:]:
     if len(row) >= 5:
-        item_map[row[0].strip()] = {'nama':row[1].strip(),'group':row[3].strip()}
+        item_map[row[1].strip()] = {'nama':row[2].strip(),'group':row[4].strip()}
     if len(row) >= 6 and row[4].strip() and row[5].strip():
         group_name_map[row[4].strip()] = row[5].strip()
     if len(row) >= 8 and row[6].strip() and row[7].strip():
@@ -132,17 +132,19 @@ all_items = sorted(set(s['item'] for s in sales))
 print("Loading stock data...")
 stock_rows = load_csv('/tmp/stock_sheet.csv')
 stock = []
-for row in stock_rows[5:]:
+for row in stock_rows[1:]:
     if len(row) < 8 or not row[0].strip(): continue
     stock.append({
         'cabang': row[0].strip(),
-        'gudang': row[1].strip(),
-        'item_code': row[2].strip(),
-        'nama': row[3].strip(),
-        'awal': parse_num(row[4]),
-        'in': parse_num(row[5]),
-        'out': parse_num(row[6]),
-        'akhir': parse_num(row[7]),
+        'tanggal': row[1].strip(),
+        'gudang': row[2].strip(),
+        'item_code': row[3].strip(),
+        'nama': row[4].strip(),
+        'awal': parse_num(row[5]),
+        'in': parse_num(row[6]),
+        'out': parse_num(row[7]),
+        'akhir': parse_num(row[8]),
+        'nilai': parse_num(row[9]) if len(row) > 9 else 0,
     })
 print(f"  Stock rows: {len(stock)}")
 
@@ -185,6 +187,19 @@ stock_by_item = defaultdict(lambda: {'akhir':0, 'in':0, 'out':0, 'nama':''})
 for s in stock:
     si = stock_by_item[s['item_code']]
     si['akhir'] += s['akhir']; si['in'] += s['in']; si['out'] += s['out']; si['nama'] = s['nama']
+
+# Stock nilai total & by group
+stock_nilai_total = sum(s['nilai'] for s in stock)
+stock_nilai_by_group = defaultdict(float)
+for s in stock:
+    code = s['item_code']
+    grp = item_map.get(code, {}).get('group', '')
+    if grp:
+        grp_name = group_name_map.get(grp, grp)
+        stock_nilai_by_group[grp_name] += s['nilai']
+    else:
+        stock_nilai_by_group['(Tanpa Group)'] += s['nilai']
+stock_nilai_top_groups = sorted(stock_nilai_by_group.items(), key=lambda x: x[1], reverse=True)[:10]
 
 stock_vs_sales_all = []
 for item_code, si in stock_by_item.items():
@@ -545,29 +560,76 @@ def agg_procurement(supplier=None, region=None):
 
 default_proc = agg_procurement()
 
+def _parse_stock_month(tanggal):
+    """Parse '31-Jan' -> 'Jan', '28-Feb' -> 'Feb'"""
+    if '-' in tanggal:
+        return tanggal.split('-')[1]
+    return tanggal
+
 # ============================================================
 # STOCK aggregation with filters
 # ============================================================
-def agg_stock(branch=None):
+def agg_stock(branch=None, months=None):
     filtered = stock
     if branch:
-        filtered = [s for s in stock if s['cabang'] == branch]
+        filtered = [s for s in filtered if s['cabang'] == branch]
+    if months:
+        month_set = set(months)
+        filtered = [s for s in filtered if _parse_stock_month(s['tanggal']) in month_set]
 
-    by_branch = defaultdict(lambda: {'items':0,'akhir':0,'in':0,'out':0})
+    by_branch = defaultdict(lambda: {'items':0,'akhir':0,'in':0,'out':0,'nilai':0})
     by_item = defaultdict(lambda: {'akhir':0,'in':0,'out':0,'nama':''})
+    by_group_nilai = defaultdict(float)
+    active_items = set()
     for s in filtered:
-        b = by_branch[s['cabang']]; b['items']+=1; b['akhir']+=s['akhir']; b['in']+=s['in']; b['out']+=s['out']
+        b = by_branch[s['cabang']]; b['items']+=1; b['akhir']+=s['akhir']; b['in']+=s['in']; b['out']+=s['out']; b['nilai']+=s['nilai']
         si = by_item[s['item_code']]; si['akhir']+=s['akhir']; si['in']+=s['in']; si['out']+=s['out']; si['nama']=s['nama']
+        # Group by group_name for stock value
+        code = s['item_code']
+        grp = item_map.get(code, {}).get('group', '')
+        if grp:
+            grp_name = group_name_map.get(grp, grp)
+        else:
+            grp_name = '(Tanpa Group)'
+        by_group_nilai[grp_name] += s['nilai']
+        if s['out'] > 0:
+            active_items.add(s['item_code'])
 
-    br_sorted = sorted(by_branch.items(), key=lambda x: x[1]['akhir'], reverse=True)
+    br_sorted = sorted(by_branch.items(), key=lambda x: x[1]['nilai'], reverse=True)
     top_items = sorted(by_item.items(), key=lambda x: x[1]['akhir'], reverse=True)[:20]
+    top_groups = sorted(by_group_nilai.items(), key=lambda x: x[1], reverse=True)[:10]
 
     return {
-        'branches': {'labels':[b[0] for b in br_sorted],'items':[b[1]['items'] for b in br_sorted],'akhir':[b[1]['akhir'] for b in br_sorted],'masuk':[b[1]['in'] for b in br_sorted],'keluar':[b[1]['out'] for b in br_sorted]},
+        'branches': {'labels':[b[0] for b in br_sorted],'items':[b[1]['items'] for b in br_sorted],'akhir':[b[1]['akhir'] for b in br_sorted],'masuk':[b[1]['in'] for b in br_sorted],'keluar':[b[1]['out'] for b in br_sorted],'nilai':[b[1]['nilai'] for b in br_sorted]},
         'items': [{'item':s[0],'nama':s[1]['nama'][:40],'akhir':s[1]['akhir'],'masuk':s[1]['in'],'keluar':s[1]['out']} for s in top_items],
+        'nilai_by_group': [{'group': g, 'nilai': n} for g, n in top_groups],
+        'active_count': len(active_items),
+        'active_items': list(active_items),
     }
 
 default_stock = agg_stock()
+
+# Pre-compute per-branch stock caches
+branch_stock_cache = {}
+for br in all_branches:
+    branch_stock_cache[br] = agg_stock(branch=br)
+
+# Pre-compute per-month stock caches (for month filter)
+stock_month_set = set()
+for s in stock:
+    m = _parse_stock_month(s['tanggal'])
+    stock_month_set.add(m)
+
+stock_month_cache = {}
+for m in stock_month_set:
+    stock_month_cache[m] = agg_stock(months=[m])
+
+# Pre-compute per-branch-per-month stock caches
+branch_month_stock_cache = {}
+for br in all_branches:
+    branch_month_stock_cache[br] = {}
+    for m in stock_month_set:
+        branch_month_stock_cache[br][m] = agg_stock(branch=br, months=[m])
 
 # ============================================================
 # COMPILE FINAL JSON
@@ -583,6 +645,9 @@ kpis = {
     'branches': len(set(s['cabang'] for s in sales)),
     'stock_items': len(stock),
     'stock_unique': len(stock_by_item),
+    'stock_active': len([si for si in stock_by_item.values() if si['out'] > 0]),
+    'stock_nilai_total': stock_nilai_total,
+    'stock_nilai_top_groups': [{'group': g, 'nilai': n} for g, n in stock_nilai_top_groups],
     'po_total': len([p for p in proc if p['status']!='Batal']),
     'po_nilai': sum(p['nilai_beli'] for p in proc if p['status']!='Batal'),
     'po_suppliers': len(set(p['supplier'] for p in proc if p['status']!='Batal')),
@@ -630,6 +695,9 @@ dashboard = {
     'supplier_cache': supplier_sales_cache,
     'supplier_branch_sp': supplier_branch_sp,
     'supplier_branch_cache': supplier_branch_cache,
+    'branch_stock_cache': branch_stock_cache,
+    'stock_month_cache': stock_month_cache,
+    'branch_month_stock_cache': branch_month_stock_cache,
 }
 
 out_path = '/root/sna-dashboard/dashboard_data.json'
