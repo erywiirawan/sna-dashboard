@@ -561,9 +561,17 @@ def agg_procurement(supplier=None, region=None):
 default_proc = agg_procurement()
 
 def _parse_stock_month(tanggal):
-    """Parse '31-Jan' -> 'Jan', '28-Feb' -> 'Feb'"""
+    """Parse stock date to 3-letter month: '31 January 2026' -> 'Jan', '28-Feb' -> 'Feb'"""
+    # Handle '31-Jan' format
     if '-' in tanggal:
         return tanggal.split('-')[1]
+    # Handle '31 January 2026' format
+    month_map = {'January':'Jan','February':'Feb','March':'Mar','April':'Apr','May':'May','June':'Jun',
+                 'July':'Jul','August':'Aug','September':'Sep','October':'Oct','November':'Nov','December':'Dec'}
+    parts = tanggal.split()
+    if len(parts) >= 2:
+        m = parts[1].strip()
+        return month_map.get(m, m[:3])
     return tanggal
 
 # ============================================================
@@ -581,6 +589,8 @@ def agg_stock(branch=None, months=None):
     by_item = defaultdict(lambda: {'akhir':0,'in':0,'out':0,'nama':''})
     by_group_nilai = defaultdict(float)
     active_items = set()
+    nilai_aktif = 0
+    nilai_stagnant = 0
     for s in filtered:
         b = by_branch[s['cabang']]; b['items']+=1; b['akhir']+=s['akhir']; b['in']+=s['in']; b['out']+=s['out']; b['nilai']+=s['nilai']
         si = by_item[s['item_code']]; si['akhir']+=s['akhir']; si['in']+=s['in']; si['out']+=s['out']; si['nama']=s['nama']
@@ -594,6 +604,9 @@ def agg_stock(branch=None, months=None):
         by_group_nilai[grp_name] += s['nilai']
         if s['out'] > 0:
             active_items.add(s['item_code'])
+            nilai_aktif += s['nilai']
+        else:
+            nilai_stagnant += s['nilai']
 
     br_sorted = sorted(by_branch.items(), key=lambda x: x[1]['nilai'], reverse=True)
     top_items = sorted(by_item.items(), key=lambda x: x[1]['akhir'], reverse=True)[:20]
@@ -605,6 +618,8 @@ def agg_stock(branch=None, months=None):
         'nilai_by_group': [{'group': g, 'nilai': n} for g, n in top_groups],
         'active_count': len(active_items),
         'active_items': list(active_items),
+        'nilai_aktif': nilai_aktif,
+        'nilai_stagnant': nilai_stagnant,
     }
 
 default_stock = agg_stock()

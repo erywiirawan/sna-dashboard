@@ -151,7 +151,7 @@ tr:hover td{background:rgba(108,92,231,.05)}
 
 <div class="tab-content" id="tab-stock">
   <div class="grid grid-3" style="margin-bottom:16px">
-    <div class="card"><h3>Total Nilai Stok</h3><div id="stockTotal" style="font-size:28px;font-weight:700;color:var(--accent)"></div></div>
+    <div class="card" style="display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100%"><h3 style="text-align:center;margin-bottom:8px">Total Nilai Stok</h3><div id="stockTotal" style="font-size:42px;font-weight:700;color:var(--accent)"></div></div>
     <div class="card"><h3>Nilai Stok Tertinggi Berdasarkan Item Group</h3><div id="stockUnique" style="font-size:13px;color:var(--text);line-height:1.6"></div></div>
     <div class="card"><h3>Stok Aktif (Keluar &gt; 0)</h3><div id="stockActive" style="font-size:28px;font-weight:700;color:var(--green)"></div></div>
   </div>
@@ -234,6 +234,11 @@ function restoreFilterState(tabId){
   updateBranchLabel();
   // Months
   monthDD.querySelectorAll('input').forEach(c=>{ c.checked = s.months.includes(c.value); });
+  // Stock tab: enforce single-select
+  if(tabId==='stock'){
+    const checked = monthDD.querySelectorAll('input:checked');
+    if(checked.length > 1){ checked.forEach((c,i)=>{ if(i>0) c.checked = false; }); }
+  }
   updateMonthLabel();
   // Supplier
   selSupplier.value = s.supplier;
@@ -265,7 +270,16 @@ function getSelectedYears(){ return Array.from(yearDD.querySelectorAll('input:ch
 function updateYearLabel(){ const ys=getSelectedYears();document.getElementById('yearBtn').innerHTML=(ys.length===0||ys.length===2?'Semua Tahun':ys.join(', '))+' <span>▾</span>'; }
 
 const monthDD = document.getElementById('monthDD');
-DATA.filters.months.forEach(m=>{ const l=document.createElement('label');l.innerHTML=`<input type="checkbox" value="${m}" onchange="updateMonthLabel()"> ${m}`;monthDD.appendChild(l); });
+DATA.filters.months.forEach(m=>{ const l=document.createElement('label');l.innerHTML=`<input type="checkbox" value="${m}"> ${m}`;monthDD.appendChild(l); });
+// Single-select enforcement for stock tab via click listener
+monthDD.addEventListener('click', function(e){
+  const cb = e.target.closest?.('input[type="checkbox"]');
+  if(!cb) return;
+  if(currentTab==='stock' && cb.checked){
+    monthDD.querySelectorAll('input[type="checkbox"]').forEach(c=>{ if(c!==cb) c.checked = false; });
+  }
+  updateMonthLabel();
+});
 
 function toggleMonthDD(){ document.getElementById('monthDD').classList.toggle('show'); }
 document.addEventListener('click',e=>{ if(!e.target.closest('.month-container'))document.getElementById('monthDD').classList.remove('show'); });
@@ -1002,8 +1016,12 @@ function getFilteredStock(f){
     if(stocks.length===1)return stocks[0];
     // Merge across months (sum up)
     const result=JSON.parse(JSON.stringify(stocks[0]));
+    result.nilai_aktif = stocks[0].nilai_aktif || 0;
+    result.nilai_stagnant = stocks[0].nilai_stagnant || 0;
     for(let i=1;i<stocks.length;i++){
       const s=stocks[i];
+      result.nilai_aktif += s.nilai_aktif || 0;
+      result.nilai_stagnant += s.nilai_stagnant || 0;
       result.branches.labels.forEach((l,j)=>{
         // Add nilai
         if(s.branches.nilai&&s.branches.nilai[j]){
@@ -1056,11 +1074,15 @@ function getFilteredStock(f){
 
   // Merge multiple branches (existing logic)
   const result=JSON.parse(JSON.stringify(DATA.default.stock));
+  result.nilai_aktif = 0;
+  result.nilai_stagnant = 0;
   // Collect data from each branch
   const allLabels=[], allItems=[], allAkhir=[], allMasuk=[], allKeluar=[], allNilai=[];
   stocks.forEach(bc=>{
     if(!bc)return;
     if(!bc.branches)return;
+    result.nilai_aktif += bc.nilai_aktif || 0;
+    result.nilai_stagnant += bc.nilai_stagnant || 0;
     bc.branches.labels.forEach((l,i)=>{
       const idx=allLabels.indexOf(l);
       if(idx>=0){
@@ -1287,7 +1309,11 @@ function renderStock(f){
   const unique=new Set(s.items.map(x=>x.item)).size;
   // Total nilai stok
   const totalNilai = s.branches.nilai.reduce((a,b)=>a+b,0);
-  document.getElementById('stockTotal').textContent=fmtRp(totalNilai);
+  const nilaiAktif = s.nilai_aktif || 0;
+  const nilaiStagnant = s.nilai_stagnant || 0;
+  const pctAktif = totalNilai > 0 ? (nilaiAktif / totalNilai * 100).toFixed(0) : 0;
+  const pctStagnant = totalNilai > 0 ? (nilaiStagnant / totalNilai * 100).toFixed(0) : 0;
+  document.getElementById('stockTotal').innerHTML=`${fmt(totalNilai)}`;
   // Top groups by stock value (from filtered data)
   const topGroups = s.nilai_by_group || DATA?.kpis?.stock_nilai_top_groups || [];
   const maxVal = topGroups.length > 0 ? topGroups[0].nilai : 1;
@@ -1295,7 +1321,7 @@ function renderStock(f){
     const pct = (g.nilai / maxVal * 100).toFixed(0);
     return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;font-size:12px">
       <span style="color:var(--dim);flex:1">${g.group}</span>
-      <span style="color:#fff;font-weight:600;margin-left:8px">${fmtRp(g.nilai)}</span>
+      <span style="color:#fff;font-weight:600;margin-left:8px">${fmt(g.nilai)}</span>
     </div>
     <div style="height:4px;background:var(--border);border-radius:2px;margin-bottom:6px">
       <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:2px"></div>
