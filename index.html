@@ -85,6 +85,21 @@ tr:hover td{background:rgba(108,92,231,.05)}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+/* Modal Popup */
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:99999;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:720px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.6)}
+.modal-box h2{font-size:16px;color:#fff;margin-bottom:4px}
+.modal-box .modal-sub{font-size:11px;color:var(--dim);margin-bottom:16px}
+.modal-close{float:right;background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;line-height:1}
+.modal-close:hover{color:var(--red)}
+.modal-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.modal-table th{position:sticky;top:0;background:var(--card);color:var(--dim);text-transform:uppercase;font-size:10px;letter-spacing:.5px;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);z-index:1}
+.modal-table td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+.modal-table tr:hover td{background:rgba(108,92,231,.05)}
+.modal-table .ratio-bar{display:inline-block;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.btn-sm{font-size:11px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--dim);transition:all .2s}
+.btn-sm:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 @media(max-width:1024px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr 1fr}}
 @media(max-width:640px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
 </style>
@@ -207,6 +222,7 @@ const DATA = await fetch('./dashboard_data.json').then(r => {
 const fmt = n => { if(n==null)return'-'; if(n>=1e12)return(n/1e12).toFixed(2)+'T'; if(n>=1e9)return(n/1e9).toFixed(2)+'B'; if(n>=1e6)return(n/1e6).toFixed(1)+'M'; if(n>=1e3)return(n/1e3).toFixed(0)+'K'; return n.toFixed(0); };
 const fmtRp = n => 'Rp '+fmt(n);
 const pct = n => n==null?'-':n.toFixed(1)+'%';
+window.fmt = fmt; window.fmtRp = fmtRp;  // expose for modal in non-module script
 
 let charts = {};
 let currentTab = 'sales';
@@ -1300,6 +1316,7 @@ function renderSales(f){
 }
 
 // STOCK TAB
+const MONTH_LIST=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function renderStock(f){
   const s=getFilteredStock(f);
   const totalItems=s.branches.items.reduce((a,b)=>a+b,0);
@@ -1317,16 +1334,94 @@ function renderStock(f){
   // Top groups by stock value (from filtered data)
   const topGroups = s.nilai_by_group || DATA?.kpis?.stock_nilai_top_groups || [];
   const maxVal = topGroups.length > 0 ? topGroups[0].nilai : 1;
-  document.getElementById('stockUnique').innerHTML=topGroups.slice(0,8).map(g=>{
+  // --- Calculate 3-month avg sales per group (only when month+year filter active) ---
+  let groupAvgSales = {}; // groupName → avg revenue
+  const ms = f.months || [];
+  const yrs = f.years || [];
+  if (ms.length === 1 && yrs.length === 1) {
+    const selMonth = ms[0];
+    const selYear = parseInt(yrs[0]);
+    const mi = MONTH_LIST.indexOf(selMonth);
+    const brs = f.branches || [];
+    // Build 3-month window: most recent 3 months ending at (selected month - 1).
+    // When wrapping to previous year, include selected month if < 3 months before available.
+    const window = [];
+    if (mi >= 3) {
+      // Normal case: 3 months before (mi-1, mi-2, mi-3)
+      for (let off = 1; off <= 3; off++) {
+        window.push({ month: MONTH_LIST[mi - off], year: selYear });
+      }
+    } else {
+      // Edge case: include selected month + wrap to previous year
+      // Jan(0): Jan, Dec(yr-1), Nov(yr-1)
+      // Feb(1): Feb, Jan, Dec(yr-1)
+      // Mar(2): Mar, Feb, Jan
+      for (let off = 0; off <= 2; off++) {
+        let idx = mi - off;        
+        let yr = selYear;
+        if (idx < 0) { idx += 12; yr--; }
+        window.push({ month: MONTH_LIST[idx], year: yr });
+      }
+    }
+    // Sum revenue per group name across the 3 months
+    const groupSums = {}; // groupName → total
+    for (const { month, year } of window) {
+      if (brs.length === 0) {
+        // No branch filter: use month_cache (all branches)
+        const prodData = DATA.month_cache?.[month]?.products;
+        if (!prodData) continue;
+        const labels = prodData.labels || [];
+        const values = year === 2025 ? (prodData.values25 || prodData.values || [])
+                                     : (prodData.values26 || prodData.values || []);
+        for (let i = 0; i < labels.length; i++) {
+          const name = DATA.filters.group_names?.[labels[i]] || labels[i];
+          groupSums[name] = (groupSums[name] || 0) + (values[i] || 0);
+        }
+      } else {
+        // Branch filter active: sum branch_month_cache across selected branches
+        for (const br of brs) {
+          const prodData = DATA.branch_month_cache?.[br]?.[month]?.products;
+          if (!prodData) continue;
+          const labels = prodData.labels || [];
+          const values = year === 2025 ? (prodData.values25 || prodData.values || [])
+                                       : (prodData.values26 || prodData.values || []);
+          for (let i = 0; i < labels.length; i++) {
+            const name = DATA.filters.group_names?.[labels[i]] || labels[i];
+            groupSums[name] = (groupSums[name] || 0) + (values[i] || 0);
+          }
+        }
+      }
+    }
+    for (const [name, total] of Object.entries(groupSums)) {
+      groupAvgSales[name] = total / 3; // avg over 3 months
+    }
+  }
+  // --- Render group cards with avg sales (show all, top 8 + "Lihat Semua") ---
+  const hasAvg = Object.keys(groupAvgSales).length > 0;
+  const allGroupData = topGroups; // full array, not sliced
+  const displayGroups = allGroupData.slice(0, 8);
+  const hasMore = allGroupData.length > 8;
+  const renderGroupRow = (g, showAvg) => {
     const pct = (g.nilai / maxVal * 100).toFixed(0);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;font-size:12px">
+    const avg = groupAvgSales[g.group];
+    const isHighTurnover = avg != null && avg > 0 && (avg / (g.nilai||1)) > 0.5;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;font-size:12px">
       <span style="color:var(--dim);flex:1">${g.group}</span>
+      ${showAvg ? `<span style="color:${isHighTurnover?'var(--accent2)':'var(--dim)'};font-size:11px;margin-left:8px;min-width:70px;text-align:right">Avg Sales: ${avg!=null?fmt(avg):'-'}</span>` : ''}
       <span style="color:#fff;font-weight:600;margin-left:8px">${fmt(g.nilai)}</span>
     </div>
     <div style="height:4px;background:var(--border);border-radius:2px;margin-bottom:6px">
       <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:2px"></div>
     </div>`;
-  }).join('')||'<span style="color:var(--dim)">Tidak ada data</span>';
+  };
+  let stockHTML = displayGroups.map(g => renderGroupRow(g, hasAvg)).join('');
+  if (hasMore) {
+    stockHTML += `<div style="text-align:center;margin-top:10px"><button class="btn-sm" onclick="openStockGroupModal()">📋 Lihat Semua Group (${allGroupData.length})</button></div>`;
+  }
+  if (!stockHTML) stockHTML = '<span style="color:var(--dim)">Tidak ada data</span>';
+  document.getElementById('stockUnique').innerHTML = stockHTML;
+  // Store for modal
+  window._stockGroupData = { groups: allGroupData, avg: groupAvgSales, hasAvg, maxVal };
   document.getElementById('stockActive').textContent=(s.active_count || DATA?.kpis?.stock_active || 0).toLocaleString();
 
   // Stock value per branch (by Nilai Stok)
@@ -1782,6 +1877,18 @@ document.getElementById('loadingOverlay').style.display = 'none';
     <button id="pwBtn" onclick="tryLogin()" style="margin-top:16px;width:100%;padding:12px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Masuk</button>
   </div>
 </div>
+<!-- Modal: Semua Group Stok -->
+<div class="modal-overlay" id="stockGroupModal" onclick="if(event.target===this)closeStockGroupModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeStockGroupModal()">✕</button>
+    <h2>📊 Semua Item Group</h2>
+    <div class="modal-sub" id="stockGroupModalSub">Nilai Stok & Avg Penjualan per Group</div>
+    <table class="modal-table">
+      <thead><tr><th>#</th><th>Group</th><th>Nilai Stok</th><th>Avg Sales 3 Bln</th><th>Ratio</th></tr></thead>
+      <tbody id="stockGroupModalBody"></tbody>
+    </table>
+  </div>
+</div>
 <script>
 async function sha256(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -1808,6 +1915,33 @@ async function tryLogin() {
 }
 document.getElementById('pwInput').addEventListener('keydown', e => { if(e.key==='Enter') tryLogin(); });
 document.getElementById('app').style.display = 'none';
+// --- Stock Group Modal ---
+function openStockGroupModal() {
+  const d = window._stockGroupData;
+  if (!d || !d.groups) return;
+  const modalBody = document.getElementById('stockGroupModalBody');
+  const modalSub = document.getElementById('stockGroupModalSub');
+  const filterBadge = document.getElementById('filterBadge');
+  modalSub.textContent = 'Nilai Stok & Avg Penjualan per Group — ' + (filterBadge.textContent || 'Semua Filter');
+  modalBody.innerHTML = d.groups.map((g, i) => {
+    const avg = d.avg[g.group];
+    const ratio = (avg != null && g.nilai > 0) ? (avg / g.nilai * 100).toFixed(1) : '-';
+    const isHigh = parseFloat(ratio) > 50;
+    const pct = (g.nilai / d.maxVal * 100).toFixed(0);
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${g.group}</td>
+      <td style="color:#fff;font-weight:600">${fmt(g.nilai)}</td>
+      <td style="color:${d.hasAvg ? (isHigh ? 'var(--accent2)' : 'var(--dim)') : 'var(--dim)'}">${avg != null ? fmt(avg) : '-'}</td>
+      <td>${ratio !== '-' ? `<span class="ratio-bar" style="width:${Math.min(parseFloat(ratio),100)}px;background:${isHigh ? 'var(--accent2)' : 'var(--accent)'}"></span>${ratio}%` : '-'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('stockGroupModal').classList.add('show');
+}
+function closeStockGroupModal() {
+  document.getElementById('stockGroupModal').classList.remove('show');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeStockGroupModal(); });
 </script>
 </body>
 </html>
