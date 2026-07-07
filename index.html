@@ -168,7 +168,7 @@ tr:hover td{background:rgba(108,92,231,.05)}
   <div class="grid grid-3" style="margin-bottom:16px">
     <div class="card" style="display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100%"><h3 style="text-align:center;margin-bottom:8px">Total Nilai Stok</h3><div id="stockTotal" style="font-size:42px;font-weight:700;color:var(--accent)"></div></div>
     <div class="card"><h3>Nilai Stok Tertinggi Berdasarkan Item Group</h3><div id="stockUnique" style="font-size:13px;color:var(--text);line-height:1.6"></div></div>
-    <div class="card"><h3>Stok Aktif (Keluar &gt; 0)</h3><div id="stockActive" style="font-size:28px;font-weight:700;color:var(--green)"></div></div>
+    <div class="card" style="text-align:center;cursor:pointer" onclick="showStagnantDetail()" id="stagnantCard"><h3 style="text-align:center">Nilai Stok Stagnant</h3><div id="stockActive" style="font-size:28px;font-weight:700;color:var(--green)"></div><div id="stockStagnantSub" style="font-size:11px;color:var(--dim);margin-top:4px"></div></div>
   </div>
   <div class="grid grid-2" style="margin-bottom:16px">
     <div class="card"><h3>Stok per Cabang</h3><div class="chart-container"><canvas id="chartStockBranch"></canvas></div></div>
@@ -226,6 +226,8 @@ window.fmt = fmt; window.fmtRp = fmtRp;  // expose for modal in non-module scrip
 
 let charts = {};
 let currentTab = 'sales';
+window._currentTab = () => currentTab;
+window._tabFilters = () => tabFilters;
 const MONTHS = DATA.filters.months;
 const MONTH_IDX = {}; MONTHS.forEach((m,i)=>MONTH_IDX[m]=i);
 
@@ -1422,7 +1424,65 @@ function renderStock(f){
   document.getElementById('stockUnique').innerHTML = stockHTML;
   // Store for modal
   window._stockGroupData = { groups: allGroupData, avg: groupAvgSales, hasAvg, maxVal };
-  document.getElementById('stockActive').textContent=(s.active_count || DATA?.kpis?.stock_active || 0).toLocaleString();
+  // Nilai Stok Stagnant (6 bulan tidak bergerak) — requires month+year filter
+  const stagnantMs = f.months || [];
+  const stagnantYrs = f.years || [];
+  const stagnantBrs = f.branches || [];
+  let stagnantNilai = null;
+  let stagnantSm = null;  // month string needed for items detail too
+  if (stagnantMs.length === 1 && stagnantYrs.length === 1 && DATA.branch_stagnant_6m) {
+    stagnantSm = stagnantMs[0];
+    if (stagnantBrs.length === 0) {
+      // All branches: sum across all
+      stagnantNilai = 0;
+      for (const br of Object.keys(DATA.branch_stagnant_6m)) {
+        stagnantNilai += DATA.branch_stagnant_6m[br]?.[stagnantSm] || 0;
+      }
+    } else {
+      stagnantNilai = 0;
+      for (const br of stagnantBrs) {
+        stagnantNilai += DATA.branch_stagnant_6m[br]?.[stagnantSm] || 0;
+      }
+    }
+  }
+  if (stagnantNilai != null && stagnantNilai > 0) {
+    document.getElementById('stockActive').innerHTML = fmt(stagnantNilai);
+    document.getElementById('stockStagnantSub').textContent = 'Tidak bergerak ≥ 6 bulan';
+    document.getElementById('stockActive').style.color = 'var(--red)';
+    // Build detail item list for modal
+    const detailItems = [];
+    const itemsSrc = DATA.branch_stagnant_items || {};
+    const tgtBrs = stagnantBrs.length > 0 ? stagnantBrs : Object.keys(itemsSrc);
+    for (const br of tgtBrs) {
+      for (const it of (itemsSrc[br]?.[stagnantSm] || [])) {
+        detailItems.push({...it, cabang: br});
+      }
+    }
+    // Sort by nilai descending, dedup by item_code (sum across branches)
+    const byCode = {};
+    for (const it of detailItems) {
+      if (!byCode[it.item_code]) byCode[it.item_code] = {...it};
+      else {
+        byCode[it.item_code].nilai += it.nilai;
+        byCode[it.item_code].qty += it.qty || 0;
+      }
+    }
+    window._stagnantData = Object.values(byCode).sort((a,b)=>b.nilai-a.nilai);
+    document.getElementById('stagnantCard').style.cursor = 'pointer';
+  } else if (stagnantMs.length === 1 && stagnantYrs.length === 1) {
+    document.getElementById('stockActive').innerHTML = fmt(0);
+    document.getElementById('stockStagnantSub').textContent = 'Semua item bergerak (6 bulan)';
+    document.getElementById('stockActive').style.color = 'var(--green)';
+    window._stagnantData = null;
+    document.getElementById('stagnantCard').style.cursor = 'default';
+  } else {
+    // No month/year filter: show dash
+    document.getElementById('stockActive').innerHTML = '-';
+    document.getElementById('stockStagnantSub').textContent = 'Pilih Bulan & Tahun';
+    document.getElementById('stockActive').style.color = 'var(--dim)';
+    window._stagnantData = null;
+    document.getElementById('stagnantCard').style.cursor = 'default';
+  }
 
   // Stock value per branch (by Nilai Stok)
   const sb=s.branches.labels.map((l,i)=>({l,i: s.branches.items[i],a: s.branches.akhir[i],m: s.branches.masuk[i],k: s.branches.keluar[i],n: s.branches.nilai[i]})).sort((a,b)=>b.n-a.n);
@@ -1509,6 +1569,31 @@ function switchTab(id,el){
 }
 
 function closeModal(){ document.getElementById('salesModal').style.display='none'; }
+
+function showStagnantDetail(){
+  const items = window._stagnantData;
+  if (!items || !items.length) return;
+  const f = (window._tabFilters && window._tabFilters() ? window._tabFilters()[window._currentTab ? window._currentTab() : 'stock'] || {} : {});
+  const sm = (f.months && f.months.length === 1) ? f.months[0] : '-';
+  const syr = (f.years && f.years.length === 1) ? f.years[0] : '-';
+  const sbr = (f.branches && f.branches.length > 0) ? f.branches.join(', ') : 'Semua Cabang';
+  const title = `📦 Item Stagnant — ${sm} ${syr}`;
+  const sub = `${sbr} · ${items.length} item · ${fmt(items.reduce((s,x)=>s+x.nilai,0))} · ${items.reduce((s,x)=>s+(x.qty||0),0).toLocaleString()} unit`;
+  const rows = items.map((it,i)=>`<tr>
+    <td>${i+1}</td>
+    <td>${it.item_code}</td>
+    <td>${it.nama||''}</td>
+    <td class="text-right">${it.qty != null ? it.qty.toLocaleString() : '-'}</td>
+    <td class="text-right">${fmt(it.nilai)}</td>
+  </tr>`).join('');
+  const html = `<div style="font-size:11px;color:var(--dim);margin-bottom:12px">${sub}</div>
+  <table class="modal-table"><thead><tr>
+    <th>#</th><th>Item</th><th>Nama</th><th class="text-right">Qty Stok</th><th class="text-right">Nilai Stok</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalBody').innerHTML=html;
+  document.getElementById('salesModal').style.display='flex';
+}
 
 function showSpcCustomers(spCode,custJson){
   let custs;
@@ -1834,6 +1919,7 @@ window.updateYearLabel = updateYearLabel;
 window.updateMonthLabel = updateMonthLabel;
 window.showCustGroupDetail = showCustGroupDetail;
 window.showSpcCustomers = showSpcCustomers;
+window.showStagnantDetail = showStagnantDetail;
 
 // Hide loading overlay
 document.getElementById('loadingOverlay').style.display = 'none';

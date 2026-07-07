@@ -646,6 +646,54 @@ for br in all_branches:
     for m in stock_month_set:
         branch_month_stock_cache[br][m] = agg_stock(branch=br, months=[m])
 
+# --- branch_stagnant_6m: nilai item yang TIDAK terjual dalam 6 bulan ---
+# Build sold-items index: {(branch, month, year): set(item_codes)}
+branch_month_sold = defaultdict(set)
+for s in sales:
+    branch_month_sold[(s['cabang'], s['bulan'], s['tahun'])].add(s['item'])
+
+MONTH_LIST = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+branch_stagnant_6m = {}
+branch_stagnant_items = {}
+for br in all_branches:
+    branch_stagnant_6m[br] = {}
+    branch_stagnant_items[br] = {}
+    for m in stock_month_set:
+        mi = MONTH_LIST.index(m)
+        # 6-month sales window before selected month
+        window = []
+        for off in range(1, 7):
+            idx = mi - off
+            yr = 2026
+            if idx < 0: idx += 12; yr -= 1
+            window.append((MONTH_LIST[idx], yr))
+        # All items sold in this window across both years
+        sold_6m = set()
+        for (wm, wy) in window:
+            sold_6m |= branch_month_sold.get((br, wm, wy), set())
+        # Sum nilai for stock items NOT sold in window + collect detail
+        filtered = [s for s in stock if s['cabang'] == br and _parse_stock_month(s['tanggal']) == m]
+        stagnant_items = []
+        stagnant_by_item = defaultdict(float)
+        stagnant_by_qty = defaultdict(float)
+        stagnant_by_nama = {}
+        for s in filtered:
+            if s['item_code'] not in sold_6m and s['nilai'] > 0:
+                stagnant_by_item[s['item_code']] += s['nilai']
+                stagnant_by_qty[s['item_code']] += s['akhir']
+                stagnant_by_nama[s['item_code']] = s['nama']
+        stagnant_nilai = sum(stagnant_by_item.values())
+        branch_stagnant_6m[br][m] = stagnant_nilai
+        # Store detail items for modal (aggregated by item_code)
+        for ic, n in sorted(stagnant_by_item.items(), key=lambda x: -x[1]):
+            stagnant_items.append({
+                'item_code': ic,
+                'nama': stagnant_by_nama.get(ic, ''),
+                'nilai': n,
+                'qty': round(stagnant_by_qty[ic], 2),
+            })
+        branch_stagnant_items[br][m] = stagnant_items
+
 # ============================================================
 # COMPILE FINAL JSON
 # ============================================================
@@ -713,6 +761,8 @@ dashboard = {
     'branch_stock_cache': branch_stock_cache,
     'stock_month_cache': stock_month_cache,
     'branch_month_stock_cache': branch_month_stock_cache,
+    'branch_stagnant_6m': branch_stagnant_6m,
+    'branch_stagnant_items': branch_stagnant_items,
 }
 
 out_path = '/root/sna-dashboard/dashboard_data.json'
