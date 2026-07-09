@@ -13,10 +13,17 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .header h1{font-size:20px;font-weight:700;color:#fff}
 .header .subtitle{font-size:12px;color:var(--dim);margin-top:2px}
 .kpi-bar{display:flex;gap:12px;padding:12px 24px;background:var(--card);border-bottom:1px solid var(--border);flex-wrap:wrap}
-.kpi-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:130px;flex:1}
-.kpi-card .label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
-.kpi-card .value{font-size:18px;font-weight:700;color:#fff;margin-top:2px}
-.kpi-card .sub{font-size:10px;color:var(--green)}
+/* Sales KPI cards — professional redesign */
+.sales-kpi{background:linear-gradient(135deg,#1e2130,#1a1d2a);border:1px solid var(--border);border-radius:10px;padding:16px 20px;position:relative;transition:transform .2s,box-shadow .2s;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.sales-kpi::after{content:'';position:absolute;top:0;right:0;width:80px;height:80px;border-radius:0 0 0 80px;opacity:.04;pointer-events:none}
+.sales-kpi:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.35)}
+.sales-kpi .kpi-icon{font-size:15px;opacity:.7}
+.sales-kpi .kpi-label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;font-weight:600}
+.sales-kpi .kpi-value{font-size:30px;font-weight:700;color:#fff;line-height:1.1}
+.sales-kpi .kpi-sub{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:4px;min-height:16px}
+.sales-kpi .kpi-trend{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:2px}
+.sales-kpi .kpi-trend.up{color:var(--green)}
+.sales-kpi .kpi-trend.down{color:var(--red)}
 .filter-bar{display:flex;align-items:center;gap:10px;padding:10px 24px;background:#15171f;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .filter-bar label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
 .filter-bar select{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;min-width:150px}
@@ -145,13 +152,13 @@ tr:hover td{background:rgba(108,92,231,.05)}
 
 <div class="tab-content active" id="tab-sales">
   <div class="grid grid-4" style="margin-bottom:16px">
-    <div class="card"><h3>Total Revenue 2026</h3><div id="salesRev26" style="font-size:28px;font-weight:700;color:var(--accent)"></div><div id="salesRev25" style="font-size:12px;color:var(--dim);margin-top:4px"></div></div>
-    <div class="card"><h3>Pertumbuhan YoY</h3><div id="salesGrowth" style="font-size:28px;font-weight:700;color:var(--green)"></div></div>
-    <div class="card"><h3>Total SKU Terjual</h3><div id="salesSKU" style="font-size:28px;font-weight:700;color:var(--blue)"></div></div>
-    <div class="card" id="groupCard" style="border-left:3px solid #6c5ce7"></div>
+    <div class="sales-kpi" style="border-left:3px solid var(--accent)"><span class="kpi-icon">💰</span><span class="kpi-label">Revenue 2026</span><span class="kpi-value" id="kpiRevValue"></span><span class="kpi-sub" id="kpiRevSub"></span></div>
+    <div class="sales-kpi" style="border-left:3px solid var(--green)"><span class="kpi-icon">📈</span><span class="kpi-label">Pertumbuhan YoY</span><span class="kpi-value" id="kpiGrowthValue"></span><span class="kpi-sub" id="kpiGrowthSub"></span></div>
+    <div class="sales-kpi" style="border-left:3px solid var(--blue)"><span class="kpi-icon">📦</span><span class="kpi-label">Total SKU Terjual</span><span class="kpi-value" id="kpiSKUValue"></span><span class="kpi-sub" id="kpiSKUSub"></span></div>
+    <div class="sales-kpi" style="border-left:3px solid var(--purple)" id="groupCard"><span class="kpi-icon">🏆</span><span class="kpi-label">Top Group Item</span><span class="kpi-value" id="kpiGroupValue"></span><span class="kpi-sub" id="kpiGroupSub"></span></div>
   </div>
   <div class="grid grid-2" style="margin-bottom:16px">
-    <div class="card"><h3>Revenue Bulanan (2025 vs 2026)</h3><div class="chart-container"><canvas id="chartMonthly"></canvas></div></div>
+    <div class="card"><h3 id="chartMonthlyTitle">Revenue Bulanan (2025 vs 2026)</h3><div class="chart-container"><canvas id="chartMonthly"></canvas></div></div>
     <div class="card"><h3>Revenue per Cabang</h3><div class="chart-container"><canvas id="chartBranch"></canvas></div></div>
   </div>
   <div class="grid grid-2" style="margin-bottom:16px">
@@ -262,6 +269,11 @@ function restoreFilterState(tabId){
   selSupplier.value = s.supplier;
   // Years
   yearDD.querySelectorAll('input').forEach(c=>{ c.checked = s.years.includes(c.value); });
+  // Sales tab: enforce single-select year
+  if(tabId==='sales'){
+    const yrsChecked = yearDD.querySelectorAll('input:checked');
+    if(yrsChecked.length > 1){ yrsChecked.forEach((c,i)=>{ if(i>0) c.checked = false; }); }
+  }
   updateYearLabel();
   // Badge
   updateFilterBadge(s);
@@ -283,6 +295,14 @@ YEARS.forEach(y=>{ const l=document.createElement('label');l.innerHTML=`<input t
 
 function toggleYearDD(){ document.getElementById('yearDD').classList.toggle('show'); }
 document.addEventListener('click',e=>{ if(!e.target.closest('.year-container'))document.getElementById('yearDD').classList.remove('show'); });
+// Single-select enforcement for sales tab
+yearDD.addEventListener('click', function(e){
+  const cb = e.target.closest?.('input[type="checkbox"]');
+  if(!cb) return;
+  if(currentTab==='sales' && cb.checked){
+    yearDD.querySelectorAll('input[type="checkbox"]').forEach(c=>{ if(c!==cb) c.checked = false; });
+  }
+});
 
 function getSelectedYears(){ return Array.from(yearDD.querySelectorAll('input:checked')).map(c=>c.value); }
 function updateYearLabel(){ const ys=getSelectedYears();document.getElementById('yearBtn').innerHTML=(ys.length===0||ys.length===2?'Semua Tahun':ys.join(', '))+' <span>▾</span>'; }
@@ -1205,39 +1225,45 @@ function renderSales(f){
   const show25=showBoth||f.years.includes('2025');
   const show26=showBoth||f.years.includes('2026');
 
-  // Update KPI cards based on year filter
+  // Update KPI cards — professional redesign with trend arrows
   if(show25&&show26){
-    document.getElementById('salesRev26').textContent=fmt(s.total26);
-    document.getElementById('salesRev25').textContent='2025: '+fmt(s.total25);
+    document.getElementById('kpiRevValue').textContent=fmt(s.total26);
+    document.getElementById('kpiRevValue').style.color='#fff';
+    const revChange=s.total25>0?((s.total26-s.total25)/s.total25*100):0;
+    document.getElementById('kpiRevSub').innerHTML=`<span class="kpi-trend ${revChange>=0?'up':'down'}">${revChange>=0?'▲':'▼'} ${Math.abs(revChange).toFixed(1)}%</span> vs 2025: ${fmt(s.total25)}`;
   }else if(show26){
-    document.getElementById('salesRev26').textContent=fmt(s.total26);
-    document.getElementById('salesRev25').textContent='';
+    document.getElementById('kpiRevValue').textContent=fmt(s.total26);
+    document.getElementById('kpiRevValue').style.color='#fff';
+    document.getElementById('kpiRevSub').innerHTML='';
   }else{
-    document.getElementById('salesRev26').textContent=fmt(s.total25);
-    document.getElementById('salesRev25').textContent='';
+    document.getElementById('kpiRevValue').textContent=fmt(s.total25);
+    document.getElementById('kpiRevValue').style.color='#fff';
+    document.getElementById('kpiRevSub').innerHTML='<span style="color:var(--dim);font-size:11px">Tahun 2025</span>';
   }
 
-  // Growth: same-months YoY (only months where 2026 has data)
+  // Growth: same-months YoY with trend arrow
   if(show26){
     const months2026 = s.monthly.labels.filter((_,i)=>s.monthly.y2026[i]>0);
     const idx = months2026.map(m=>MONTH_IDX[m]);
     const rev26_same = idx.reduce((sum,i)=>sum+s.monthly.y2026[i],0);
     const rev25_same = idx.reduce((sum,i)=>sum+s.monthly.y2025[i],0);
     const growth = rev25_same>0?((rev26_same-rev25_same)/rev25_same*100):0;
-    document.getElementById('salesGrowth').textContent=pct(growth);
-    document.getElementById('salesGrowth').className='';
-    document.getElementById('salesGrowth').style.color=growth>=0?'var(--green)':'var(--red)';
+    document.getElementById('kpiGrowthValue').textContent=pct(growth);
+    document.getElementById('kpiGrowthValue').style.color=growth>=0?'var(--green)':'var(--red)';
+    document.getElementById('kpiGrowthSub').innerHTML=`<span class="kpi-trend ${growth>=0?'up':'down'}">${growth>=0?'▲':'▼'} vs 2025 (same months)</span>`;
   }else{
-    document.getElementById('salesGrowth').textContent='-';
-    document.getElementById('salesGrowth').style.color='var(--dim)';
+    document.getElementById('kpiGrowthValue').textContent='-';
+    document.getElementById('kpiGrowthValue').style.color='var(--dim)';
+    document.getElementById('kpiGrowthSub').textContent='';
   }
   // Year-aware SKU count
   const skuCount=show25&&show26?s.total_sku:show26?s.total_sku_26:s.total_sku_25;
-  document.getElementById('salesSKU').textContent=skuCount?skuCount.toLocaleString():0;
+  document.getElementById('kpiSKUValue').textContent=skuCount?skuCount.toLocaleString():0;
+  document.getElementById('kpiSKUValue').style.color='var(--blue)';
+  document.getElementById('kpiSKUSub').innerHTML=show25&&show26?`<span style="color:var(--dim);font-size:11px">2025: ${(s.total_sku_25||0).toLocaleString()} · 2026: ${(s.total_sku_26||0).toLocaleString()}</span>`:'';
 
   // Top Group Item card — year-aware, merge by name
   const gc=document.getElementById('groupCard');
-  // Use year-specific product values for ranking
   const prodVals=show25&&show26?s.products.values:show26?(s.products.values26||s.products.values):(s.products.values25||s.products.values);
   const grpMerged={};
   const grpCodes={};
@@ -1252,13 +1278,17 @@ function renderSales(f){
   const topGrpVal=prodSorted[0]?.v;
   gc.style.cursor='pointer';
   gc.onclick=()=>showGroupClassDetail(topGrpCode,s,show25,show26);
-  gc.innerHTML=topGrpName?`<h3>🏆 Top Group Item</h3><div style="font-size:22px;font-weight:700;color:#fff;margin-top:4px">${topGrpName}</div><div style="font-size:12px;color:var(--dim)">${topGrpCode} · Klik untuk detail</div><div style="font-size:18px;font-weight:600;color:var(--accent);margin-top:4px">${fmt(topGrpVal)}</div>`:'';
+  document.getElementById('kpiGroupValue').textContent=topGrpName||'-';
+  document.getElementById('kpiGroupValue').style.color='var(--purple)';
+  document.getElementById('kpiGroupSub').innerHTML=topGrpCode?`<span style="color:var(--accent);font-weight:600;font-size:13px">${fmt(topGrpVal)}</span> · ${topGrpCode}`:'';
 
-  // Monthly chart
+  // Monthly chart — bar (2026) + line (2025) combo (selalu tampilkan keduanya sebagai referensi)
   const monthlyDS=[];
-  if(show25)monthlyDS.push({label:'2025',data:s.monthly.y2025,backgroundColor:'rgba(108,92,231,.5)',borderColor:'#6c5ce7',borderWidth:1});
-  if(show26)monthlyDS.push({label:'2026',data:s.monthly.y2026,backgroundColor:'rgba(0,206,201,.5)',borderColor:'#00cec9',borderWidth:1});
-  makeChart('chartMonthly','bar',{data:{labels:s.monthly.labels,datasets:monthlyDS},options:{scales:{y:{ticks:{callback:v=>fmt(v)}}}}});
+  monthlyDS.push({label:'2026',data:s.monthly.y2026,type:'bar',backgroundColor:show26?'rgba(0,206,201,.65)':'rgba(0,206,201,.2)',borderColor:'#00cec9',borderWidth:0,borderRadius:4});
+  monthlyDS.push({label:'2025',data:s.monthly.y2025,type:'line',borderColor:show25?'#6c5ce7':'rgba(108,92,231,.3)',borderWidth:2,borderDash:[6,3],pointBackgroundColor:show25?'#6c5ce7':'rgba(108,92,231,.3)',pointRadius:4,pointBorderColor:'#fff',pointBorderWidth:1,fill:false,tension:.3});
+  makeChart('chartMonthly','bar',{data:{labels:s.monthly.labels,datasets:monthlyDS},options:{scales:{y:{ticks:{callback:v=>fmt(v)}}},plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.raw)}}}}});
+  // Update chart title
+  document.getElementById('chartMonthlyTitle').textContent='Revenue Bulanan (Bar 2026 vs Garis 2025)';
 
   // Branch chart
   const bi=s.branches.labels.map((l,i)=>({l,r25:s.branches.rev25[i],r26:s.branches.rev26[i]})).sort((a,b)=>b.r26-a.r26).slice(0,15);
