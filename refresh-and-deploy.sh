@@ -2,10 +2,10 @@
 # Refresh data dari Google Sheets + deploy JSON
 set -e
 echo "📥 Fetching data dari Google Sheets..."
-python3 /root/sna-dashboard/fetch_data.py
+python3 /root/projects/sna-dashboard/fetch_data.py
 
 echo "🚀 Deploying ke Vercel..."
-cd /root/sna-dashboard
+cd /root/projects/sna-dashboard
 vercel --prod --yes --token $(cat ~/.hermes/secrets/vercel_token)
 
 echo ""

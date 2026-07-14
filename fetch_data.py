@@ -765,7 +765,7 @@ dashboard = {
     'branch_stagnant_items': branch_stagnant_items,
 }
 
-out_path = '/root/sna-dashboard/dashboard_data.json'
+out_path = '/root/projects/sna-dashboard/dashboard_data.json'
 with open(out_path, 'w') as f:
     json.dump(dashboard, f)
 

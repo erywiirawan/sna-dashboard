@@ -2,7 +2,7 @@
 import subprocess, json, os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-SCRIPT = "/root/sna-dashboard/refresh-and-deploy.sh"
+SCRIPT = "/root/projects/sna-dashboard/refresh-and-deploy.sh"
 PORT = 20129
 KEY = os.environ.get("WEBHOOK_KEY", "sna-refresh-2026")
 
