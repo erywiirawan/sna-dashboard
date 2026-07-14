@@ -438,7 +438,7 @@ function mergeMonthCaches(months){
       r.revenue+=c.revenue;r.rev25+=c.rev25||0;r.rev26+=c.rev26||0;
       if((c.revenue||0)>r._maxRev){r._maxRev=c.revenue;r.branch=c.branch||'';}
       // Merge groups
-      (c.groups||[]).forEach(g=>{r._grpMap[g.group]=(r._grpMap[g.group]||0)+g.revenue;});
+      (c.groups||[]).forEach(g=>{if(!r._grpMap[g.group])r._grpMap[g.group]={revenue:0,rev25:0,rev26:0};r._grpMap[g.group].revenue+=g.revenue||0;r._grpMap[g.group].rev25+=g.rev25||0;r._grpMap[g.group].rev26+=g.rev26||0;});
     });
     
     // LOB
@@ -468,7 +468,7 @@ function mergeMonthCaches(months){
   result.customers=Object.values(result._custMap).sort((a,b)=>b.revenue-a.revenue);
   // Flatten customer groups
   result.customers.forEach(c=>{
-    c.groups=Object.entries(c._grpMap||{}).map(([group,revenue])=>({group,revenue})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+    c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
     delete c._grpMap;
   });
   result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);
@@ -540,7 +540,7 @@ function mergeBranchMonthCaches(branch,months){
       r.revenue+=c.revenue;r.rev25+=c.rev25||0;r.rev26+=c.rev26||0;
       if((c.revenue||0)>r._maxRev){r._maxRev=c.revenue;r.branch=c.branch||'';}
       // Merge groups
-      (c.groups||[]).forEach(g=>{r._grpMap[g.group]=(r._grpMap[g.group]||0)+g.revenue;});
+      (c.groups||[]).forEach(g=>{if(!r._grpMap[g.group])r._grpMap[g.group]={revenue:0,rev25:0,rev26:0};r._grpMap[g.group].revenue+=g.revenue||0;r._grpMap[g.group].rev25+=g.rev25||0;r._grpMap[g.group].rev26+=g.rev26||0;});
     });
     mc.lob.labels.forEach((l,i)=>{
       if(!result.lob._map[l])result.lob._map[l]=0;
@@ -562,7 +562,7 @@ function mergeBranchMonthCaches(branch,months){
   result.customers=Object.values(result._custMap).sort((a,b)=>b.revenue-a.revenue);
   // Flatten customer groups
   result.customers.forEach(c=>{
-    c.groups=Object.entries(c._grpMap||{}).map(([group,revenue])=>({group,revenue})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+    c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
     delete c._grpMap;
   });
   result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);
@@ -602,7 +602,7 @@ function mergeMultiBranchMonthCaches(branches,months){
       if(mc.products.classes25){Object.entries(mc.products.classes25).forEach(([grp,clsObj])=>{if(!result.products._classes25[grp])result.products._classes25[grp]={};Object.entries(clsObj).forEach(([cls,val])=>{result.products._classes25[grp][cls]=(result.products._classes25[grp][cls]||0)+val;});});}
       if(mc.products.classes26){Object.entries(mc.products.classes26).forEach(([grp,clsObj])=>{if(!result.products._classes26[grp])result.products._classes26[grp]={};Object.entries(clsObj).forEach(([cls,val])=>{result.products._classes26[grp][cls]=(result.products._classes26[grp][cls]||0)+val;});});}
       mc.items.forEach(it=>{if(!result._itemsMap[it.kode])result._itemsMap[it.kode]={kode:it.kode,nama:it.nama,revenue:0,qty:0,rev25:0,rev26:0};result._itemsMap[it.kode].revenue+=it.revenue;result._itemsMap[it.kode].qty+=it.qty;result._itemsMap[it.kode].rev25+=it.rev25||0;result._itemsMap[it.kode].rev26+=it.rev26||0;});
-      mc.customers.forEach(c=>{if(!result._custMap[c.kode])result._custMap[c.kode]={kode:c.kode,nama:c.nama,revenue:0,rev25:0,rev26:0,branch:c.branch||br,_maxRev:c.revenue||0,groups:[],_grpMap:{}};const r=result._custMap[c.kode];r.revenue+=c.revenue;r.rev25+=c.rev25||0;r.rev26+=c.rev26||0;if((c.revenue||0)>r._maxRev){r._maxRev=c.revenue;r.branch=c.branch||br;}(c.groups||[]).forEach(g=>{r._grpMap[g.group]=(r._grpMap[g.group]||0)+g.revenue;});});
+      mc.customers.forEach(c=>{if(!result._custMap[c.kode])result._custMap[c.kode]={kode:c.kode,nama:c.nama,revenue:0,rev25:0,rev26:0,branch:c.branch||br,_maxRev:c.revenue||0,groups:[],_grpMap:{}};const r=result._custMap[c.kode];r.revenue+=c.revenue;r.rev25+=c.rev25||0;r.rev26+=c.rev26||0;if((c.revenue||0)>r._maxRev){r._maxRev=c.revenue;r.branch=c.branch||br;}(c.groups||[]).forEach(g=>{if(!r._grpMap[g.group])r._grpMap[g.group]={revenue:0,rev25:0,rev26:0};r._grpMap[g.group].revenue+=g.revenue||0;r._grpMap[g.group].rev25+=g.rev25||0;r._grpMap[g.group].rev26+=g.rev26||0;});});
       mc.lob.labels.forEach((l,i)=>{if(!result.lob._map[l])result.lob._map[l]=0;result.lob._map[l]+=mc.lob.values[i];});
       if(mc.salespersons)mc.salespersons.forEach(sp=>{if(!result._spMap[sp.code])result._spMap[sp.code]={code:sp.code,revenue:0,qty:0,customers:0,cust_top:[],_custTopMap:{}};const s=result._spMap[sp.code];s.revenue+=sp.revenue||0;s.qty+=sp.qty||0;s.customers+=sp.customers||0;(sp.cust_top||[]).forEach(ct=>{if(!s._custTopMap[ct.kode])s._custTopMap[ct.kode]={kode:ct.kode,nama:ct.nama,revenue:0};s._custTopMap[ct.kode].revenue+=ct.revenue||0;});});
     });
@@ -611,7 +611,7 @@ function mergeMultiBranchMonthCaches(branches,months){
   const pi=result.products.labels.map((l,i)=>({l,v:result.products.values[i]})).sort((a,b)=>b.v-a.v);result.products.labels=pi.map(x=>x.l);result.products.values=pi.map(x=>x.v);result.products.values25=pi.map(x=>result.products._values25[x.l]||0);result.products.values26=pi.map(x=>result.products._values26[x.l]||0);
   result.items=Object.values(result._itemsMap).sort((a,b)=>b.revenue-a.revenue);
   result.customers=Object.values(result._custMap).sort((a,b)=>b.revenue-a.revenue);
-  result.customers.forEach(c=>{c.groups=Object.entries(c._grpMap||{}).map(([group,revenue])=>({group,revenue})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);delete c._grpMap;});
+  result.customers.forEach(c=>{c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);delete c._grpMap;});
   result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);
   result.salespersons=Object.values(result._spMap).map(sp=>({...sp,cust_top:Object.values(sp._custTopMap).sort((a,b)=>b.revenue-a.revenue).slice(0,30)})).sort((a,b)=>b.revenue-a.revenue);result.salespersons.forEach(sp=>delete sp._custTopMap);
   return result;
@@ -664,9 +664,12 @@ function mergeBranchCaches(branches){
       if(!result._custMap[c.kode])result._custMap[c.kode]={kode:c.kode,nama:c.nama,revenue:0,rev25:0,rev26:0,groups:[],_grpMap:{}};
       const r=result._custMap[c.kode];
       r.revenue+=c.revenue||0;r.rev25+=c.rev25||0;r.rev26+=c.rev26||0;
-      // Merge groups
+      // Merge groups (year-aware)
       (c.groups||[]).forEach(g=>{
-        r._grpMap[g.group]=(r._grpMap[g.group]||0)+g.revenue;
+        if(!r._grpMap[g.group])r._grpMap[g.group]={revenue:0,rev25:0,rev26:0};
+        r._grpMap[g.group].revenue+=g.revenue||0;
+        r._grpMap[g.group].rev25+=g.rev25||0;
+        r._grpMap[g.group].rev26+=g.rev26||0;
       });
     });
     // LOB
@@ -693,7 +696,7 @@ function mergeBranchCaches(branches){
   result.customers=Object.values(result._custMap).sort((a,b)=>b.revenue-a.revenue);
   // Flatten customer groups
   result.customers.forEach(c=>{
-    c.groups=Object.entries(c._grpMap||{}).map(([group,revenue])=>({group,revenue})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+    c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
     delete c._grpMap;
   });
   result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);
@@ -747,7 +750,7 @@ function mergeSupplierBranchCaches(supplier,branches){
       r.revenue+=c.revenue||0;r.rev25+=c.rev25||0;r.rev26+=c.rev26||0;
       if((c.revenue||0)>r._maxRev){r._maxRev=c.revenue;r.branch=br;}
       // Merge groups
-      (c.groups||[]).forEach(g=>{r._grpMap[g.group]=(r._grpMap[g.group]||0)+g.revenue;});
+      (c.groups||[]).forEach(g=>{if(!r._grpMap[g.group])r._grpMap[g.group]={revenue:0,rev25:0,rev26:0};r._grpMap[g.group].revenue+=g.revenue||0;r._grpMap[g.group].rev25+=g.rev25||0;r._grpMap[g.group].rev26+=g.rev26||0;});
     });
     (d.lob?.labels||[]).forEach((l,i)=>{if(!result.lob._map[l])result.lob._map[l]=0;result.lob._map[l]+=d.lob.values[i]||0;});
     (d.salespersons||[]).forEach(sp=>{
@@ -766,7 +769,7 @@ function mergeSupplierBranchCaches(supplier,branches){
   result.items=Object.values(result._itemsMap).sort((a,b)=>b.revenue-a.revenue);result.customers=Object.values(result._custMap).sort((a,b)=>b.revenue-a.revenue);
   // Flatten customer groups
   result.customers.forEach(c=>{
-    c.groups=Object.entries(c._grpMap||{}).map(([group,revenue])=>({group,revenue})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+    c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
     delete c._grpMap;
   });
   result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);
@@ -972,7 +975,7 @@ function getFilteredSales(f){
           });
           // Flatten groups
           supData.customers=Object.values(custMap).map(c=>{
-            c.groups=Object.entries(c._grpMap||{}).map(([group,revenue])=>({group,revenue})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+            c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
             delete c._grpMap;
             return c;
           }).sort((a,b)=>b.revenue-a.revenue);
@@ -1652,8 +1655,22 @@ function showCustGroupDetail(custName,grpJson){
   let groups;
   try{ groups=JSON.parse(grpJson); }catch(e){ groups=[]; }
   if(!groups.length){groups=[{group:'-',revenue:0}];}
-  const total=groups.reduce((a,g)=>a+g.revenue,0);
-  const title='📦 '+custName+' — Detail per Group Item';
+  // Year-aware: pilih revenue sesuai filter tahun aktif
+  const yf=getActiveFilters().years||[];
+  const showBoth=!yf.length||yf.length===2;
+  const s25=showBoth||yf.includes('2025');
+  const s26=showBoth||yf.includes('2026');
+  const grpRev=g=>{
+    if(g.rev25===undefined&&g.rev26===undefined)return g.revenue; // data lama, fallback gabungan
+    if(s25&&s26)return g.revenue;
+    if(s26)return g.rev26||0;
+    return g.rev25||0;
+  };
+  groups=groups.map(g=>({...g,_rev:grpRev(g)})).filter(g=>g._rev>0).sort((a,b)=>b._rev-a._rev);
+  if(!groups.length){groups=[{group:'-',_rev:0}];}
+  const total=groups.reduce((a,g)=>a+g._rev,0);
+  const yrLabel=s25&&s26?'':s26?' (2026)':' (2025)';
+  const title='📦 '+custName+' — Detail per Group Item'+yrLabel;
   const html='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'+
     '<th style="text-align:left;padding:8px;color:var(--dim);border-bottom:1px solid var(--border)">#</th>'+
     '<th style="text-align:left;padding:8px;color:var(--dim);border-bottom:1px solid var(--border)">GROUP ITEM</th>'+
@@ -1661,11 +1678,13 @@ function showCustGroupDetail(custName,grpJson){
     '<th style="text-align:right;padding:8px;color:var(--dim);border-bottom:1px solid var(--border)">%</th>'+
     '</tr></thead><tbody>'+
     groups.map((g,i)=>{
-      const pct=total>0?(g.revenue/total*100).toFixed(1):'0.0';
+      const pct=total>0?(g._rev/total*100).toFixed(1):'0.0';
+      const gname=DATA.filters.group_names?.[g.group]||'';
+      const gcell=gname?`${gname} <span style="color:var(--dim);font-size:11px">(${g.group})</span>`:g.group;
       return `<tr style="border-bottom:1px solid var(--border)">`+
         `<td style="padding:7px 8px">${i+1}</td>`+
-        `<td style="padding:7px 8px">${g.group}</td>`+
-        `<td style="padding:7px 8px;text-align:right">${fmt(g.revenue)}</td>`+
+        `<td style="padding:7px 8px">${gcell}</td>`+
+        `<td style="padding:7px 8px;text-align:right">${fmt(g._rev)}</td>`+
         `<td style="padding:7px 8px;text-align:right;color:var(--dim)">${pct}%</td>`+
         '</tr>';
     }).join('')+

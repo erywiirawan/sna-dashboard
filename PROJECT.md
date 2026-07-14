@@ -116,3 +116,6 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 | 2026-06-19 | Fix: Refresh button actually triggers refresh — nginx proxy on :20128→:20129, 9router→:20130 |
 | 2026-06-19 | Webhook systemd service (sna-refresh-webhook) for persistence across reboots |
 | 2026-06-19 | Auto-reload after refresh: 120s countdown then page reload with fresh data |
+| 2026-07-14 | Feat: modal Detail per Group Item tampilkan nama group (BATA RINGAN, PAKU, dst) + kode |
+| 2026-07-14 | Feat: modal Detail per Group Item ikut filter tahun (rev25/rev26 per-group di fetch_data.py) |
+| 2026-07-14 | Fix: merge functions kehilangan rev25/rev26 di group per customer — modal jadi gabungan 2025+2026 saat filter bulan/cabang aktif. Diperbaiki di 6 tempat merge + 6 tempat flatten (mergeMonthCaches, mergeBranchCaches, mergeBranchMonthCaches, mergeMultiBranchMonthCaches, dst). Verifikasi DIVA TK Jan-Mei: baris 659.5M ↔ modal 659.5M ✅ |
