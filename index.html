@@ -401,7 +401,7 @@ function mergeMonthCaches(months){
     products:{labels:[],values:[],_map:{},_classes:{},_values25:{},_values26:{},_classes25:{},_classes26:{}},
     items:[],_itemsMap:{},
     customers:[],_custMap:{},
-    lob:{labels:[],values:[],_map:{}},
+    lob:{labels:[],values:[],_map:{},_map25:{},_map26:{}},
     total_sku:0,total_sku_25:0,total_sku_26:0
   };
   
@@ -476,10 +476,14 @@ function mergeMonthCaches(months){
       (c.groups||[]).forEach(g=>{if(!r._grpMap[g.group])r._grpMap[g.group]={revenue:0,rev25:0,rev26:0};r._grpMap[g.group].revenue+=g.revenue||0;r._grpMap[g.group].rev25+=g.rev25||0;r._grpMap[g.group].rev26+=g.rev26||0;});
     });
     
-    // LOB
+    // LOB — year-aware
     mc.lob.labels.forEach((l,i)=>{
       if(!result.lob._map[l])result.lob._map[l]=0;
       result.lob._map[l]+=mc.lob.values[i];
+      if(!result.lob._map25[l])result.lob._map25[l]=0;
+      if(mc.lob.values25)result.lob._map25[l]+=(mc.lob.values25[i]||0);
+      if(!result.lob._map26[l])result.lob._map26[l]=0;
+      if(mc.lob.values26)result.lob._map26[l]+=(mc.lob.values26[i]||0);
     });
   });
   
@@ -506,7 +510,7 @@ function mergeMonthCaches(months){
     c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
     delete c._grpMap;
   });
-  result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);
+  result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);result.lob.values25=result.lob.labels.map(l=>result.lob._map25[l]||0);result.lob.values26=result.lob.labels.map(l=>result.lob._map26[l]||0);
   
   return result;
 }
@@ -523,7 +527,7 @@ function mergeBranchMonthCaches(branch,months){
     products:{labels:[],values:[],_map:{},_classes:{},_values25:{},_values26:{},_classes25:{},_classes26:{}},
     items:[],_itemsMap:{},
     customers:[],_custMap:{},
-    lob:{labels:[],values:[],_map:{}}
+    lob:{labels:[],values:[],_map:{},_map25:{},_map26:{}}
   };
   valid.forEach(m=>{
     const mc=bm[m];
@@ -580,6 +584,10 @@ function mergeBranchMonthCaches(branch,months){
     mc.lob.labels.forEach((l,i)=>{
       if(!result.lob._map[l])result.lob._map[l]=0;
       result.lob._map[l]+=mc.lob.values[i];
+      if(!result.lob._map25[l])result.lob._map25[l]=0;
+      if(mc.lob.values25)result.lob._map25[l]+=(mc.lob.values25[i]||0);
+      if(!result.lob._map26[l])result.lob._map26[l]=0;
+      if(mc.lob.values26)result.lob._map26[l]+=(mc.lob.values26[i]||0);
     });
   });
   result.products.labels=Object.keys(result.products._map);
@@ -600,7 +608,7 @@ function mergeBranchMonthCaches(branch,months){
     c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
     delete c._grpMap;
   });
-  result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);
+  result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);result.lob.values25=result.lob.labels.map(l=>result.lob._map25[l]||0);result.lob.values26=result.lob.labels.map(l=>result.lob._map26[l]||0);
   return result;
 }
 
@@ -612,7 +620,7 @@ function mergeMultiBranchMonthCaches(branches,months){
     products:{labels:[],values:[],_map:{},_classes:{},_values25:{},_values26:{},_classes25:{},_classes26:{}},
     items:[],_itemsMap:{},
     customers:[],_custMap:{},
-    lob:{labels:[],values:[],_map:{}},
+    lob:{labels:[],values:[],_map:{},_map25:{},_map26:{}},
     salespersons:[],_spMap:{}
   };
   branches.forEach(br=>{
@@ -638,7 +646,7 @@ function mergeMultiBranchMonthCaches(branches,months){
       if(mc.products.classes26){Object.entries(mc.products.classes26).forEach(([grp,clsObj])=>{if(!result.products._classes26[grp])result.products._classes26[grp]={};Object.entries(clsObj).forEach(([cls,val])=>{result.products._classes26[grp][cls]=(result.products._classes26[grp][cls]||0)+val;});});}
       mc.items.forEach(it=>{if(!result._itemsMap[it.kode])result._itemsMap[it.kode]={kode:it.kode,nama:it.nama,revenue:0,qty:0,rev25:0,rev26:0};result._itemsMap[it.kode].revenue+=it.revenue;result._itemsMap[it.kode].qty+=it.qty;result._itemsMap[it.kode].rev25+=it.rev25||0;result._itemsMap[it.kode].rev26+=it.rev26||0;});
       mc.customers.forEach(c=>{if(!result._custMap[c.kode])result._custMap[c.kode]={kode:c.kode,nama:c.nama,revenue:0,rev25:0,rev26:0,branch:c.branch||br,_maxRev:c.revenue||0,groups:[],_grpMap:{}};const r=result._custMap[c.kode];r.revenue+=c.revenue;r.rev25+=c.rev25||0;r.rev26+=c.rev26||0;if((c.revenue||0)>r._maxRev){r._maxRev=c.revenue;r.branch=c.branch||br;}(c.groups||[]).forEach(g=>{if(!r._grpMap[g.group])r._grpMap[g.group]={revenue:0,rev25:0,rev26:0};r._grpMap[g.group].revenue+=g.revenue||0;r._grpMap[g.group].rev25+=g.rev25||0;r._grpMap[g.group].rev26+=g.rev26||0;});});
-      mc.lob.labels.forEach((l,i)=>{if(!result.lob._map[l])result.lob._map[l]=0;result.lob._map[l]+=mc.lob.values[i];});
+      mc.lob.labels.forEach((l,i)=>{if(!result.lob._map[l])result.lob._map[l]=0;result.lob._map[l]+=mc.lob.values[i];if(!result.lob._map25[l])result.lob._map25[l]=0;if(mc.lob.values25)result.lob._map25[l]+=(mc.lob.values25[i]||0);if(!result.lob._map26[l])result.lob._map26[l]=0;if(mc.lob.values26)result.lob._map26[l]+=(mc.lob.values26[i]||0);});
       if(mc.salespersons)mc.salespersons.forEach(sp=>{if(!result._spMap[sp.code])result._spMap[sp.code]={code:sp.code,revenue:0,qty:0,customers:0,cust_top:[],_custTopMap:{}};const s=result._spMap[sp.code];s.revenue+=sp.revenue||0;s.qty+=sp.qty||0;s.customers+=sp.customers||0;(sp.cust_top||[]).forEach(ct=>{if(!s._custTopMap[ct.kode])s._custTopMap[ct.kode]={kode:ct.kode,nama:ct.nama,revenue:0};s._custTopMap[ct.kode].revenue+=ct.revenue||0;});});
     });
   });
@@ -647,7 +655,7 @@ function mergeMultiBranchMonthCaches(branches,months){
   result.items=Object.values(result._itemsMap).sort((a,b)=>b.revenue-a.revenue);
   result.customers=Object.values(result._custMap).sort((a,b)=>b.revenue-a.revenue);
   result.customers.forEach(c=>{c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);delete c._grpMap;});
-  result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);
+  result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);result.lob.values25=result.lob.labels.map(l=>result.lob._map25[l]||0);result.lob.values26=result.lob.labels.map(l=>result.lob._map26[l]||0);
   result.salespersons=Object.values(result._spMap).map(sp=>({...sp,cust_top:Object.values(sp._custTopMap).sort((a,b)=>b.revenue-a.revenue).slice(0,30)})).sort((a,b)=>b.revenue-a.revenue);result.salespersons.forEach(sp=>delete sp._custTopMap);
   return result;
 }
@@ -661,7 +669,7 @@ function mergeBranchCaches(branches){
     products:{labels:[],values:[],_map:{},_classes:{},_values25:{},_values26:{},_classes25:{},_classes26:{}},
     items:[],_itemsMap:{},
     customers:[],_custMap:{},
-    lob:{labels:[],values:[],_map:{}},
+    lob:{labels:[],values:[],_map:{},_map25:{},_map26:{}},
     salespersons:[],_spMap:{}
   };
   branches.forEach(br=>{
@@ -707,8 +715,8 @@ function mergeBranchCaches(branches){
         r._grpMap[g.group].rev26+=g.rev26||0;
       });
     });
-    // LOB
-    (bc.lob?.labels||[]).forEach((l,i)=>{if(!result.lob._map[l])result.lob._map[l]=0;result.lob._map[l]+=bc.lob.values[i]||0;});
+    // LOB — year-aware
+    (bc.lob?.labels||[]).forEach((l,i)=>{if(!result.lob._map[l])result.lob._map[l]=0;result.lob._map[l]+=bc.lob.values[i]||0;if(!result.lob._map25[l])result.lob._map25[l]=0;if(bc.lob.values25)result.lob._map25[l]+=(bc.lob.values25[i]||0);if(!result.lob._map26[l])result.lob._map26[l]=0;if(bc.lob.values26)result.lob._map26[l]+=(bc.lob.values26[i]||0);});
     // Salespersons
     (bc.salespersons||[]).forEach(sp=>{
       if(!result._spMap[sp.code])result._spMap[sp.code]={code:sp.code,revenue:0,qty:0,customers:0,cust25:0,cust26:0,rev25:0,rev26:0,qty25:0,qty26:0};
@@ -734,7 +742,7 @@ function mergeBranchCaches(branches){
     c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
     delete c._grpMap;
   });
-  result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);
+  result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);result.lob.values25=result.lob.labels.map(l=>result.lob._map25[l]||0);result.lob.values26=result.lob.labels.map(l=>result.lob._map26[l]||0);
   result.salespersons=Object.values(result._spMap).sort((a,b)=>b.revenue-a.revenue);
   return result;
 }
@@ -751,7 +759,7 @@ function mergeSupplierBranchCaches(supplier,branches){
     products:{labels:[],values:[],_map:{},_classes:{},_values25:{},_values26:{},_classes25:{},_classes26:{}},
     items:[],_itemsMap:{},
     customers:[],_custMap:{},
-    lob:{labels:[],values:[],_map:{}},
+    lob:{labels:[],values:[],_map:{},_map25:{},_map26:{}},
     salespersons:[],_spMap:{}
   };
   let found=false;
@@ -787,7 +795,7 @@ function mergeSupplierBranchCaches(supplier,branches){
       // Merge groups
       (c.groups||[]).forEach(g=>{if(!r._grpMap[g.group])r._grpMap[g.group]={revenue:0,rev25:0,rev26:0};r._grpMap[g.group].revenue+=g.revenue||0;r._grpMap[g.group].rev25+=g.rev25||0;r._grpMap[g.group].rev26+=g.rev26||0;});
     });
-    (d.lob?.labels||[]).forEach((l,i)=>{if(!result.lob._map[l])result.lob._map[l]=0;result.lob._map[l]+=d.lob.values[i]||0;});
+    (d.lob?.labels||[]).forEach((l,i)=>{if(!result.lob._map[l])result.lob._map[l]=0;result.lob._map[l]+=d.lob.values[i]||0;if(!result.lob._map25[l])result.lob._map25[l]=0;if(d.lob.values25)result.lob._map25[l]+=(d.lob.values25[i]||0);if(!result.lob._map26[l])result.lob._map26[l]=0;if(d.lob.values26)result.lob._map26[l]+=(d.lob.values26[i]||0);});
     (d.salespersons||[]).forEach(sp=>{
       if(!result._spMap[sp.code])result._spMap[sp.code]={code:sp.code,revenue:0,qty:0,customers:0,cust25:0,cust26:0,rev25:0,rev26:0,qty25:0,qty26:0};
       const r=result._spMap[sp.code];
@@ -807,7 +815,7 @@ function mergeSupplierBranchCaches(supplier,branches){
     c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
     delete c._grpMap;
   });
-  result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);
+  result.lob.labels=Object.keys(result.lob._map);result.lob.values=result.lob.labels.map(l=>result.lob._map[l]);result.lob.values25=result.lob.labels.map(l=>result.lob._map25[l]||0);result.lob.values26=result.lob.labels.map(l=>result.lob._map26[l]||0);
   result.salespersons=Object.values(result._spMap).sort((a,b)=>b.revenue-a.revenue);
   return result;
 }
@@ -948,7 +956,7 @@ function getFilteredSales(f){
         emptyData.monthly.y2025=Array(12).fill(0);emptyData.monthly.y2026=Array(12).fill(0);
         emptyData.products={labels:[],values:[],classes:{},values25:[],values26:[],classes25:{},classes26:{}};
         emptyData.items=[];emptyData.customers=[];emptyData.total_sku=0;emptyData.total_sku_25=0;emptyData.total_sku_26=0;
-        emptyData.lob={labels:[],values:[]};emptyData.salespersons=[];
+        emptyData.lob={labels:[],values:[],values25:[],values26:[]};emptyData.salespersons=[];
         sales=emptyData;
       }
     }else if(!hasBr){
@@ -1471,8 +1479,12 @@ function renderSales(f){
     }
   }}});
 
-  // LOB chart
-  makeChart('chartLOB','doughnut',{data:{labels:s.lob.labels,datasets:[{data:s.lob.values,backgroundColor:['#6c5ce7','#00cec9','#e17055','#fdcb6e','#74b9ff','#a29bfe','#00b894','#fab1a0']}]},options:{plugins:{legend:{position:'right'}}}});
+  // LOB chart — doughnut with corporate gradient + center total, year-aware
+  const lobColors=['#0a1628','#112240','#1a3460','#1e40af','#2563eb','#3069e8','#4f8fe0','#7aabec'];
+  const lobValues=show25&&show26?s.lob.values:(show26?(s.lob.values26||s.lob.values):(s.lob.values25||s.lob.values));
+  const lobTotal=lobValues.reduce((a,b)=>a+b,0);
+  const lobCenterText={id:'lobCenter',afterDraw(chart){const{ctx,chartArea:{width,height,top,left}}=chart;const cx=left+width/2,cy=top+height/2;ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 22px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillStyle='#e8ecf1';ctx.fillText(fmt(lobTotal),cx,cy-4);ctx.font='11px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillStyle='#6b7280';ctx.fillText('Total Revenue',cx,cy+18);ctx.restore();}};
+  makeChart('chartLOB','doughnut',{data:{labels:s.lob.labels,datasets:[{data:lobValues,backgroundColor:lobColors.slice(0,s.lob.labels.length),borderColor:'#141a26',borderWidth:2,hoverBorderColor:'#2563eb'}]},options:{cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#8888aa',padding:12,font:{size:11},usePointStyle:true,pointStyleWidth:8}},tooltip:{callbacks:{label:ctx=>{const pct=lobTotal>0?(ctx.raw/lobTotal*100).toFixed(1):'0.0';return ctx.label+': '+fmt(ctx.raw)+' ('+pct+'%)';}}}}},plugins:[lobCenterText]});
 
   // Items table — year-aware, sorted by filtered revenue
   const itemsRev=s.items.map(r=>({...r,displayRev:show25&&show26?r.revenue:show26?(r.rev26||0):(r.rev25||0)}));

@@ -297,11 +297,18 @@ def agg_sales(branch=None, months=None, supplier=None):
                 cu_groups_26[s['kode_pelanggan']][s['grup_item']] += s['jumlah']
     top_custs = sorted(cu.items(), key=lambda x: x[1], reverse=True)[:20]
 
-    # LOB
+    # LOB — year-aware
     lo = defaultdict(float)
+    lo_25 = defaultdict(float)
+    lo_26 = defaultdict(float)
     for s in filtered:
         lo[s['lob']] += s['jumlah']
+        if s['tahun']==2025: lo_25[s['lob']] += s['jumlah']
+        else: lo_26[s['lob']] += s['jumlah']
     lo_sorted = sorted(lo.items(), key=lambda x: x[1], reverse=True)
+    lo_labels = [l[0] for l in lo_sorted]
+    lo_values25 = [lo_25.get(l,0) for l in lo_labels]
+    lo_values26 = [lo_26.get(l,0) for l in lo_labels]
 
     # Sales by person (per salesperson code)
     sp = defaultdict(lambda: {'revenue':0,'qty':0,'customers':set(),'cust25':set(),'cust26':set(),'rev25':0,'rev26':0,'qty25':0,'qty26':0,'cust_rev':defaultdict(float),'cust_rev25':defaultdict(float),'cust_rev26':defaultdict(float)})
@@ -343,7 +350,7 @@ def agg_sales(branch=None, months=None, supplier=None):
         'total_sku_26': total_sku_26,
         'customers': [{'kode':c[0],'nama':cu_name.get(c[0],'')[:30],'revenue':c[1],'qty':cu_qty.get(c[0],0),'rev25':cu_rev25.get(c[0],0),'rev26':cu_rev26.get(c[0],0),'branch':branch or '',
             'groups':[{'group':g,'revenue':r,'rev25':cu_groups_25.get(c[0],{}).get(g,0),'rev26':cu_groups_26.get(c[0],{}).get(g,0)} for g,r in sorted(cu_groups.get(c[0],{}).items(), key=lambda x:-x[1])[:20]]} for c in top_custs],
-        'lob': {'labels':[l[0] for l in lo_sorted],'values':[l[1] for l in lo_sorted]},
+        'lob': {'labels':lo_labels,'values':[l[1] for l in lo_sorted],'values25':lo_values25,'values26':lo_values26},
         'salespersons': sp_list[:20],
     }
 
