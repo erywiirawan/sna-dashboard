@@ -1,6 +1,6 @@
 #!/bin/bash
 # Refresh data dari PostgreSQL VPS (Jalur A) + deploy JSON ke Vercel.
-# Sumber: sales+stock+produk+customer dari PostgreSQL. Master + procurement dari file lokal.
+# Sumber: SEMUA data (sales, stock, produk, customer, master, procurement) dari PostgreSQL.
 set -e
 cd /root/projects/sna-dashboard
 
@@ -15,10 +15,12 @@ $PSQL -c "\copy (SELECT nomor_invoice,tanggal,kode_cabang,kode_customer,kode_ite
 $PSQL -c "\copy (SELECT kode_cabang,kode_item,nama_item,qty_awal,qty_masuk,qty_keluar,qty_akhir,periode,wh,tanggal,nilai_stok,hrg_kirim,hrg_ambil FROM fact_stok) TO '/tmp/pg_stock.csv' WITH CSV HEADER"
 $PSQL -c "\copy (SELECT kode_item,nama_item,grup_item,kategori_item,item_jp,satuan,kode_supplier,brand,supplier_name FROM dim_produk) TO '/tmp/pg_produk.csv' WITH CSV HEADER"
 $PSQL -c "\copy (SELECT kode_customer,nama_customer FROM dim_customer) TO '/tmp/pg_customer.csv' WITH CSV HEADER"
+$PSQL -c "\copy (SELECT kode,nama_barang,satuan,group_code,group_name,class_code,class_name,type_code,supplier FROM dim_master_item) TO '/tmp/pg_master.csv' WITH CSV HEADER"
+$PSQL -c "\copy (SELECT status,reg,cab,po,kode,nama,kategori,supplier,qty_po,nilai_beli,tgl_po,total_berat FROM fact_procurement) TO '/tmp/pg_procurement.csv' WITH CSV HEADER"
 REMOTE
 sshpass -e scp -o StrictHostKeyChecking=no /tmp/pg_export_remote.sh $VPS:/tmp/pg_export_remote.sh
 sshpass -e ssh -o StrictHostKeyChecking=no $VPS 'bash /tmp/pg_export_remote.sh'
-for f in pg_sales pg_stock pg_produk pg_customer; do
+for f in pg_sales pg_stock pg_produk pg_customer pg_master pg_procurement; do
   sshpass -e scp -o StrictHostKeyChecking=no $VPS:/tmp/$f.csv /tmp/$f.csv
 done
 

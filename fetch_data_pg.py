@@ -30,25 +30,25 @@ month_order = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'
 PG_DIR = os.environ.get('PG_DIR', '/tmp')
 
 # ============================================================
-# MASTER DATA (dari master_list_items.csv lokal + dim_produk PG)
+# MASTER DATA (dari PostgreSQL dim_master_item + dim_produk PG)
 # ============================================================
-print("Loading master data...")
-items_raw = load_csv('/root/master_list_items.csv')
+print("Loading master data (PostgreSQL)...")
+items_raw = load_csv(os.path.join(PG_DIR,'pg_master.csv'))
 item_map = {}
 group_name_map = {}
 class_name_map = {}
 class_name_votes = defaultdict(lambda: defaultdict(int))
 item_class_map = {}
-# master CSV: 0=No 1=Kode 2=Nama 3=Satuan 4=Group 5=GroupName 6=Class 7=ClassName 8=Type 9=SUPPLIER
+# pg_master: 0=kode 1=nama_barang 2=satuan 3=group_code 4=group_name 5=class_code 6=class_name 7=type_code 8=supplier
 for row in items_raw[1:]:
-    if len(row) >= 5:
-        item_map[row[1].strip()] = {'nama':row[2].strip(),'group':row[4].strip()}
-    if len(row) >= 6 and row[4].strip() and row[5].strip():
-        group_name_map[row[4].strip()] = row[5].strip()
-    if len(row) >= 8 and row[6].strip() and row[7].strip():
-        class_name_votes[row[6].strip()][row[7].strip()] += 1
-    if len(row) >= 7 and row[1].strip() and row[6].strip():
-        item_class_map[row[1].strip()] = row[6].strip()
+    if len(row) >= 4:
+        item_map[row[0].strip()] = {'nama':row[1].strip(),'group':row[3].strip()}
+    if len(row) >= 5 and row[3].strip() and row[4].strip():
+        group_name_map[row[3].strip()] = row[4].strip()
+    if len(row) >= 7 and row[5].strip() and row[6].strip():
+        class_name_votes[row[5].strip()][row[6].strip()] += 1
+    if len(row) >= 6 and row[0].strip() and row[5].strip():
+        item_class_map[row[0].strip()] = row[5].strip()
 for code, votes in class_name_votes.items():
     class_name_map[code] = max(votes, key=votes.get)
 
@@ -132,22 +132,23 @@ for row in stock_rows[1:]:
 print(f"  Stock rows: {len(stock)}")
 
 # ============================================================
-# PROCUREMENT DATA (tetap dari file lokal djabes_sheet.csv)
+# PROCUREMENT DATA (dari PostgreSQL fact_procurement)
 # ============================================================
-print("Loading procurement data (lokal)...")
+print("Loading procurement data (PostgreSQL)...")
 proc = []
-proc_path = '/tmp/djabes_sheet.csv'
+proc_path = os.path.join(PG_DIR,'pg_procurement.csv')
 if os.path.exists(proc_path):
     proc_rows = load_csv(proc_path)
-    for row in proc_rows[2:]:
-        if len(row) < 10 or not row[1].strip(): continue
+    # pg_procurement: 0=status 1=reg 2=cab 3=po 4=kode 5=nama 6=kategori 7=supplier 8=qty_po 9=nilai_beli 10=tgl_po 11=total_berat
+    for row in proc_rows[1:]:
+        if len(row) < 8 or not row[0].strip(): continue
         proc.append({
-            'status': row[1].strip(), 'reg': row[2].strip(), 'cab': row[3].strip(),
-            'po': row[5].strip(), 'kode': row[6].strip(), 'nama': row[7].strip(),
-            'kategori': row[8].strip(), 'supplier': row[9].strip(),
-            'qty_po': parse_num_id(row[11]), 'nilai_beli': parse_num_id(row[14]),
-            'tgl_po': row[16].strip() if len(row) > 16 else '',
-            'total_berat': parse_num_id(row[19]) if len(row) > 19 else 0,
+            'status': row[0].strip(), 'reg': row[1].strip(), 'cab': row[2].strip(),
+            'po': row[3].strip(), 'kode': row[4].strip(), 'nama': row[5].strip(),
+            'kategori': row[6].strip(), 'supplier': row[7].strip(),
+            'qty_po': parse_num(row[8]), 'nilai_beli': parse_num(row[9]),
+            'tgl_po': row[10].strip() if len(row) > 10 else '',
+            'total_berat': parse_num(row[11]) if len(row) > 11 else 0,
         })
 print(f"  Procurement rows: {len(proc)}")
 
