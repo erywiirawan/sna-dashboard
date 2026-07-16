@@ -1480,7 +1480,7 @@ function renderSales(f){
   }}});
 
   // LOB chart — doughnut with corporate gradient + center total, year-aware
-  const lobColors=['#0a1628','#112240','#1a3460','#1e40af','#2563eb','#3069e8','#4f8fe0','#7aabec'];
+  const lobColors=['#3b82f6','#06b6d4','#10b981','#8b5cf6','#f59e0b','#ec4899','#6366f1','#14b8a6'];
   const lobValues=show25&&show26?s.lob.values:(show26?(s.lob.values26||s.lob.values):(s.lob.values25||s.lob.values));
   const lobTotal=lobValues.reduce((a,b)=>a+b,0);
   const lobCenterText={id:'lobCenter',afterDraw(chart){const{ctx,chartArea:{width,height,top,left}}=chart;const cx=left+width/2,cy=top+height/2;ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 22px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillStyle='#e8ecf1';ctx.fillText(fmt(lobTotal),cx,cy-4);ctx.font='11px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillStyle='#6b7280';ctx.fillText('Total Revenue',cx,cy+18);ctx.restore();}};
