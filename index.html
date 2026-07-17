@@ -1993,6 +1993,21 @@ function showBranchSalesDetail(branch,f){
           });
         });
       });
+      // Fallback: supplier months cache has no cust_top, pull from branch_cache
+      const hasNoCustTop=spMap && (!Object.values(spMap)[0]||Object.keys(Object.values(spMap)[0]._custMap||{}).length===0);
+      if(hasNoCustTop&&supActive&&DATA.branch_cache?.[branch]){
+        const brSp=(DATA.branch_cache[branch].salespersons||[]);
+        brSp.forEach(bsp=>{
+          if(spMap[bsp.code]&&(bsp.cust_top||[]).length>0){
+            (bsp.cust_top||[]).forEach(ct=>{
+              if(!spMap[bsp.code]._custMap[ct.kode])spMap[bsp.code]._custMap[ct.kode]={kode:ct.kode,nama:ct.nama,revenue:0,revenue25:0,revenue26:0};
+              spMap[bsp.code]._custMap[ct.kode].revenue+=ct.revenue;
+              spMap[bsp.code]._custMap[ct.kode].revenue25+=ct.revenue25||0;
+              spMap[bsp.code]._custMap[ct.kode].revenue26+=ct.revenue26||0;
+            });
+          }
+        });
+      }
       s=Object.values(spMap).map(sp=>{
         // Filter cust_top by year if applicable
         let ct=Object.values(sp._custMap).sort((a,b)=>b.revenue-a.revenue);
