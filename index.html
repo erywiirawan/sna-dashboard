@@ -901,7 +901,12 @@ function getFilteredSales(f){
           const mergedItems=Object.values(allItems).sort((a,b)=>b.revenue-a.revenue);
           // Final fallback: use supplier_branch_cache items (all-month, supplier-branch specific)
           sbData.items=mergedItems.length>0?mergedItems:(sbData.items||[]);
-          sbData.customers=Object.values(allCust).sort((a,b)=>b.revenue-a.revenue);
+          const hasBrCust=Object.values(allCust).sort((a,b)=>b.revenue-a.revenue);
+          // Fallback: merge groups from supplier_cache for br-month custs that have no groups
+          const supCustGrp2={};
+          (DATA.supplier_cache[f.supplier]?.customers||[]).forEach(c=>{supCustGrp2[c.kode]=c.groups||[];});
+          hasBrCust.forEach(c=>{if((!c.groups||c.groups.length===0)&&supCustGrp2[c.kode])c.groups=supCustGrp2[c.kode];});
+          sbData.customers=hasBrCust;
           // Recalculate SKU counts from filtered items
           sbData.total_sku_26=sbData.items.filter(it=>(it.rev26||0)>0).length;
           sbData.total_sku_25=sbData.items.filter(it=>(it.rev25||0)>0).length;
@@ -1017,8 +1022,15 @@ function getFilteredSales(f){
             });
           });
           // Flatten groups
+          // Fallback: merge groups from supplier_cache when _br_month_cust has no group data
+          const supCustGroups={};
+          (DATA.supplier_cache[f.supplier]?.customers||[]).forEach(c=>{supCustGroups[c.kode]=c.groups||[];});
           supData.customers=Object.values(custMap).map(c=>{
-            c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+            const grpMapEntries=Object.entries(c._grpMap||{});
+            c.groups=grpMapEntries.map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+            if((!c.groups||c.groups.length===0)&&supCustGroups[c.kode]&&supCustGroups[c.kode].length>0){
+              c.groups=supCustGroups[c.kode];
+            }
             delete c._grpMap;
             return c;
           }).sort((a,b)=>b.revenue-a.revenue);
