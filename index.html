@@ -871,31 +871,39 @@ function getFilteredSales(f){
     } else {
       sales = mergeGroupCaches(f.groups);
     }
-    // Apply month filter on top
-    if(f.months.length > 0 && f.months.length < 12){
-      const sel = f.months.map(m=>MONTH_IDX[m]);
-      sales.total25 = sel.reduce((s,i)=>s+sales.monthly.y2025[i],0);
-      sales.total26 = sel.reduce((s,i)=>s+sales.monthly.y2026[i],0);
-      // Zero out non-selected months
+    // Apply branch filter on top (recompute monthly + branch bars from branch_monthly)
+    const monthActive = f.months.length > 0 && f.months.length < 12;
+    if(hasBr && sales.branch_monthly){
+      const brData = sales.branches;
+      const selMonths = monthActive ? f.months : MONTHS;
+      // Recompute per-branch bar totals restricted to selected months
+      const newLabels=[], newRev25=[], newRev26=[];
+      brs.forEach(br=>{
+        const bm = sales.branch_monthly[br];
+        if(!bm) return;
+        let r25=0, r26=0;
+        selMonths.forEach(m=>{ if(bm[m]){ r25+=bm[m].rev25||0; r26+=bm[m].rev26||0; } });
+        newLabels.push(br); newRev25.push(r25); newRev26.push(r26);
+      });
+      brData.labels=newLabels; brData.rev25=newRev25; brData.rev26=newRev26;
+      // Recompute monthly arrays from selected branches (full year, month zeroing applied below)
+      const m25=new Array(12).fill(0), m26=new Array(12).fill(0);
+      brs.forEach(br=>{
+        const bm = sales.branch_monthly[br];
+        if(!bm) return;
+        MONTHS.forEach((m,mi)=>{ if(bm[m]){ m25[mi]+=bm[m].rev25||0; m26[mi]+=bm[m].rev26||0; } });
+      });
+      sales.monthly.y2025=m25; sales.monthly.y2026=m26;
+    }
+    // Apply month filter (zero out non-selected months)
+    if(monthActive){
       MONTHS.forEach((m,mi)=>{
-        if(!f.months.includes(m)){sales.monthly.y2025[mi]=0; sales.monthly.y2026[mi]=0;}
+        if(!f.months.includes(m)){ sales.monthly.y2025[mi]=0; sales.monthly.y2026[mi]=0; }
       });
     }
-    // Apply branch filter on top
-    if(hasBr){
-      const brData = sales.branches;
-      const selBrIdx = brs.map(b=>brData.labels.indexOf(b)).filter(i=>i>=0);
-      if(selBrIdx.length > 0){
-        brData.labels = selBrIdx.map(i=>brData.labels[i]);
-        brData.rev25 = selBrIdx.map(i=>brData.rev25[i]);
-        brData.rev26 = selBrIdx.map(i=>brData.rev26[i]);
-        sales.total25 = brData.rev25.reduce((a,b)=>a+b,0);
-        sales.total26 = brData.rev26.reduce((a,b)=>a+b,0);
-      } else {
-        sales.total25 = 0; sales.total26 = 0;
-        brData.labels = []; brData.rev25 = []; brData.rev26 = [];
-      }
-    }
+    // Recompute totals from adjusted monthly
+    sales.total25 = sales.monthly.y2025.reduce((a,b)=>a+b,0);
+    sales.total26 = sales.monthly.y2026.reduce((a,b)=>a+b,0);
   }
   
   // Supplier filter: use pre-computed supplier cache
