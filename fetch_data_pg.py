@@ -204,7 +204,7 @@ for item_code, si in stock_by_item.items():
 print("Generating dashboard JSON...")
 
 # Helper: aggregate sales with optional filters
-def agg_sales(branch=None, months=None, supplier=None):
+def agg_sales(branch=None, months=None, supplier=None, group=None):
     """Aggregate sales data with optional filters. Returns dict with all aggregations."""
     filtered = sales
     if branch:
@@ -215,6 +215,9 @@ def agg_sales(branch=None, months=None, supplier=None):
     if supplier:
         sup_items = set(p['kode'] for p in proc if p['supplier'] == supplier)
         filtered = [s for s in filtered if s['item'] in sup_items]
+    # Group filter: only items belonging to the specified product group
+    if group:
+        filtered = [s for s in filtered if s['grup_item'] == group]
 
     total_25 = sum(s['jumlah'] for s in filtered if s['tahun']==2025)
     total_26 = sum(s['jumlah'] for s in filtered if s['tahun']==2026)
@@ -520,6 +523,25 @@ for sup in all_suppliers:
             supplier_branch_cache[sup][br] = agg_sales(branch=br, supplier=sup)
 
 # ============================================================
+# GROUP ITEM CACHES (for sales tab group filter)
+# ============================================================
+# Collect all unique group codes from sales data
+all_groups = sorted(set(s['grup_item'] for s in sales if s['grup_item']))
+
+# Group → item codes mapping
+group_items = defaultdict(set)
+for s in sales:
+    if s['grup_item'] and s['item']:
+        group_items[s['grup_item']].add(s['item'])
+
+# Pre-compute per-group sales caches
+group_sales_cache = {}
+for grp in all_groups:
+    group_sales_cache[grp] = agg_sales(group=grp)
+
+print(f"  Group cache: {len(group_sales_cache)} groups")
+
+# ============================================================
 # PROCUREMENT aggregation with filters
 # ============================================================
 def agg_procurement(supplier=None, region=None):
@@ -735,6 +757,8 @@ dashboard = {
         'suppliers': all_suppliers,
         'supplier_items': supplier_items_map,
         'supplier_customers': supplier_customers_map,
+        'groups': all_groups,
+        'group_items': {k: list(v) for k, v in group_items.items()},
         'group_names': group_name_map,
         'class_names': class_name_map,
     },
@@ -752,6 +776,7 @@ dashboard = {
     'supplier_cache': supplier_sales_cache,
     'supplier_branch_sp': supplier_branch_sp,
     'supplier_branch_cache': supplier_branch_cache,
+    'group_cache': group_sales_cache,
     'branch_stock_cache': branch_stock_cache,
     'stock_month_cache': stock_month_cache,
     'branch_month_stock_cache': branch_month_stock_cache,
@@ -765,7 +790,8 @@ with open(out_path, 'w') as f:
 
 size = os.path.getsize(out_path)
 print(f"\n✅ Dashboard JSON: {size:,} bytes ({size/1024:.0f} KB)")
-print(f"Filters: {len(all_branches)} branches, {len(all_months)} months, {len(all_suppliers)} suppliers")
+print(f"Filters: {len(all_branches)} branches, {len(all_months)} months, {len(all_suppliers)} suppliers, {len(all_groups)} groups")
 print(f"Sales: {len(sales)} rows")
 print(f"Branch cache: {len(branch_sales_cache)} entries")
 print(f"Month cache: {len(month_sales_cache)} entries")
+print(f"Group cache: {len(group_sales_cache)} entries")

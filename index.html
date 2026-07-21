@@ -34,6 +34,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .month-container{position:relative}
 .branch-container{position:relative}
 .year-container{position:relative}
+.group-container{position:relative}
 .year-btn{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;min-width:100px;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center}
 .year-btn:focus{border-color:var(--accent);outline:none}
 .year-dropdown{display:none;position:absolute;top:100%;left:0;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px;z-index:1000;min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
@@ -143,6 +144,10 @@ tr:hover td{background:rgba(108,92,231,.05)}
     <div class="month-dropdown" id="monthDD"></div>
   </div>
   <div><label>Supplier</label><br><select id="selSupplier"><option value="">Semua Supplier</option></select></div>
+  <div class="group-container"><label>Group Item</label><br>
+    <div class="month-btn" id="groupBtn" onclick="toggleGroupDD()">Semua Group <span>▾</span></div>
+    <div class="month-dropdown" id="groupDD"></div>
+  </div>
   <div class="year-container"><label>Tahun</label><br>
     <div class="year-btn" id="yearBtn" onclick="toggleYearDD()">Semua Tahun <span>▾</span></div>
     <div class="year-dropdown" id="yearDD"></div>
@@ -274,7 +279,7 @@ const MONTHS = DATA.filters.months;
 const MONTH_IDX = {}; MONTHS.forEach((m,i)=>MONTH_IDX[m]=i);
 
 // Per-tab filter state — {sales:{branches:[],months:[],supplier:'',years:[]}, ...}
-const tabFilters = {sales:{branches:[],months:[],supplier:'',years:[]},stock:{branches:[],months:[],supplier:'',years:[]},procurement:{branches:[],months:[],supplier:'',years:[]},supplychain:{branches:[],months:[],supplier:'',years:[]}};
+const tabFilters = {sales:{branches:[],months:[],supplier:'',years:[],groups:[]},stock:{branches:[],months:[],supplier:'',years:[],groups:[]},procurement:{branches:[],months:[],supplier:'',years:[],groups:[]},supplychain:{branches:[],months:[],supplier:'',years:[],groups:[]}};
 
 // Save current filter UI to a tab's state
 function saveFilterState(tabId){
@@ -282,7 +287,8 @@ function saveFilterState(tabId){
     branches: getSelectedBranches(),
     months: getSelectedMonths(),
     supplier: selSupplier.value,
-    years: getSelectedYears()
+    years: getSelectedYears(),
+    groups: getSelectedGroups()
   };
 }
 
@@ -310,6 +316,9 @@ function restoreFilterState(tabId){
     if(yrsChecked.length > 1){ yrsChecked.forEach((c,i)=>{ if(i>0) c.checked = false; }); }
   }
   updateYearLabel();
+  // Groups
+  groupDD.querySelectorAll('input').forEach(c=>{ c.checked = (s.groups||[]).includes(c.value); });
+  updateGroupLabel();
   // Badge
   updateFilterBadge(s);
 }
@@ -323,6 +332,21 @@ function getSelectedBranches(){ return Array.from(branchDD.querySelectorAll('inp
 function updateBranchLabel(){ const bs=getSelectedBranches();document.getElementById('branchBtn').innerHTML=(bs.length===0||bs.length===DATA.filters.branches.length?'Semua Cabang':bs.join(', '))+' <span>▾</span>'; }
 const selSupplier = document.getElementById('selSupplier');
 DATA.filters.suppliers.forEach(s=>{ const o=document.createElement('option');o.value=s;o.textContent=s;selSupplier.appendChild(o); });
+
+// Group filter — multi-select checkbox dropdown
+const groupDD = document.getElementById('groupDD');
+if(DATA.filters.groups){
+  DATA.filters.groups.forEach(g=>{
+    const displayName = DATA.filters.group_names?.[g] || g;
+    const l=document.createElement('label');
+    l.innerHTML=`<input type="checkbox" value="${g}" onchange="updateGroupLabel()"> ${displayName} <span style="font-size:10px;color:var(--dim)">${g}</span>`;
+    groupDD.appendChild(l);
+  });
+}
+function toggleGroupDD(){ groupDD.classList.toggle('show'); }
+document.addEventListener('click',e=>{ if(!e.target.closest('.group-container'))groupDD.classList.remove('show'); });
+function getSelectedGroups(){ return Array.from(groupDD.querySelectorAll('input:checked')).map(c=>c.value); }
+function updateGroupLabel(){ const gs=getSelectedGroups(); const all=DATA.filters.groups||[]; document.getElementById('groupBtn').innerHTML=(gs.length===0||gs.length===all.length?'Semua Group':gs.length+' group')+' <span>▾</span>'; }
 
 const YEARS = ['2025','2026'];
 const yearDD = document.getElementById('yearDD');
@@ -361,7 +385,7 @@ function getSelectedMonths(){ return Array.from(monthDD.querySelectorAll('input:
 function updateMonthLabel(){ const ms=getSelectedMonths();document.getElementById('monthBtn').innerHTML=(ms.length===0||ms.length===12?'Semua Bulan':ms.join(', '))+' <span>▾</span>'; }
 
 function getActiveFilters(){
-  return { branches:getSelectedBranches(), months:getSelectedMonths(), supplier:selSupplier.value, years:getSelectedYears() };
+  return { branches:getSelectedBranches(), months:getSelectedMonths(), supplier:selSupplier.value, years:getSelectedYears(), groups:getSelectedGroups() };
 }
 
 function updateFilterBadge(f){
@@ -371,6 +395,7 @@ function updateFilterBadge(f){
   if(f.months.length>0&&f.months.length<12)parts.push(f.months.join('-'));
   if(f.supplier)parts.push(f.supplier);
   if(f.years.length>0&&f.years.length<2)parts.push('Tahun '+f.years.join('-'));
+  if(f.groups&&f.groups.length>0&&f.groups.length<(DATA.filters.groups||[]).length)parts.push(f.groups.length+' group');
   if(parts.length){el.textContent='Filter aktif: '+parts.join(', ');el.classList.add('show');}
   else{el.classList.remove('show');}
 }
@@ -839,6 +864,40 @@ function getFilteredSales(f){
     }
   }
   
+  // Group filter: use pre-computed group cache
+  if(f.groups && f.groups.length > 0 && DATA.group_cache){
+    if(f.groups.length === 1){
+      sales = JSON.parse(JSON.stringify(DATA.group_cache[f.groups[0]]));
+    } else {
+      sales = mergeGroupCaches(f.groups);
+    }
+    // Apply month filter on top
+    if(f.months.length > 0 && f.months.length < 12){
+      const sel = f.months.map(m=>MONTH_IDX[m]);
+      sales.total25 = sel.reduce((s,i)=>s+sales.monthly.y2025[i],0);
+      sales.total26 = sel.reduce((s,i)=>s+sales.monthly.y2026[i],0);
+      // Zero out non-selected months
+      MONTHS.forEach((m,mi)=>{
+        if(!f.months.includes(m)){sales.monthly.y2025[mi]=0; sales.monthly.y2026[mi]=0;}
+      });
+    }
+    // Apply branch filter on top
+    if(hasBr){
+      const brData = sales.branches;
+      const selBrIdx = brs.map(b=>brData.labels.indexOf(b)).filter(i=>i>=0);
+      if(selBrIdx.length > 0){
+        brData.labels = selBrIdx.map(i=>brData.labels[i]);
+        brData.rev25 = selBrIdx.map(i=>brData.rev25[i]);
+        brData.rev26 = selBrIdx.map(i=>brData.rev26[i]);
+        sales.total25 = brData.rev25.reduce((a,b)=>a+b,0);
+        sales.total26 = brData.rev26.reduce((a,b)=>a+b,0);
+      } else {
+        sales.total25 = 0; sales.total26 = 0;
+        brData.labels = []; brData.rev25 = []; brData.rev26 = [];
+      }
+    }
+  }
+  
   // Supplier filter: use pre-computed supplier cache
   if(f.supplier && DATA.supplier_cache && DATA.supplier_cache[f.supplier]){
     if(hasBr && DATA.supplier_branch_cache && DATA.supplier_branch_cache[f.supplier]){
@@ -1072,6 +1131,109 @@ function getFilteredSales(f){
     }
   }
   return sales;
+}
+
+// Merge multiple group caches into one aggregated result
+function mergeGroupCaches(groups){
+  const first = JSON.parse(JSON.stringify(DATA.group_cache[groups[0]]));
+  if(groups.length === 1) return first;
+  
+  for(let i=1; i<groups.length; i++){
+    const g = DATA.group_cache[groups[i]];
+    if(!g) continue;
+    
+    first.total25 += g.total25 || 0;
+    first.total26 += g.total26 || 0;
+    
+    // Monthly
+    for(let j=0; j<12; j++){
+      first.monthly.y2025[j] += g.monthly.y2025[j];
+      first.monthly.y2026[j] += g.monthly.y2026[j];
+    }
+    
+    // Branches — merge by label
+    const brMap = {};
+    first.branches.labels.forEach((l,idx)=>{brMap[l]={rev25:first.branches.rev25[idx],rev26:first.branches.rev26[idx]};});
+    g.branches.labels.forEach((l,idx)=>{
+      if(brMap[l]){brMap[l].rev25 += g.branches.rev25[idx]; brMap[l].rev26 += g.branches.rev26[idx];}
+      else{brMap[l]={rev25:g.branches.rev25[idx],rev26:g.branches.rev26[idx]};}
+    });
+    const brSorted = Object.entries(brMap).sort((a,b)=>(b[1].rev25+b[1].rev26)-(a[1].rev25+a[1].rev26));
+    first.branches.labels = brSorted.map(e=>e[0]);
+    first.branches.rev25 = brSorted.map(e=>e[1].rev25);
+    first.branches.rev26 = brSorted.map(e=>e[1].rev26);
+    
+    // Products — merge by label
+    const prodMap = {}; const prodMap25 = {}; const prodMap26 = {};
+    const addProd = (arr, lbls, mp25, mp26) => {
+      lbls.forEach((l,idx)=>{prodMap[l]=(prodMap[l]||0)+(arr.values[idx]||0);});
+      (arr.values25||[]).forEach((v,idx)=>{mp25[lbls[idx]]=(mp25[lbls[idx]]||0)+v;});
+      (arr.values26||[]).forEach((v,idx)=>{mp26[lbls[idx]]=(mp26[lbls[idx]]||0)+v;});
+    };
+    addProd(first.products, first.products.labels, prodMap25, prodMap26);
+    addProd(g.products, g.products.labels, prodMap25, prodMap26);
+    const pLabels = Object.keys(prodMap).sort((a,b)=>prodMap[b]-prodMap[a]);
+    first.products.labels = pLabels;
+    first.products.values = pLabels.map(l=>prodMap[l]);
+    first.products.values25 = pLabels.map(l=>prodMap25[l]||0);
+    first.products.values26 = pLabels.map(l=>prodMap26[l]||0);
+    first.products.classes = {}; first.products.classes25 = {}; first.products.classes26 = {};
+    
+    // Items — merge by kode
+    const itMap = {};
+    first.items.forEach(it=>{itMap[it.kode]={...it};});
+    g.items.forEach(it=>{
+      if(itMap[it.kode]){itMap[it.kode].revenue+=it.revenue;itMap[it.kode].qty+=it.qty;itMap[it.kode].rev25+=it.rev25||0;itMap[it.kode].rev26+=it.rev26||0;}
+      else{itMap[it.kode]={...it};}
+    });
+    first.items = Object.values(itMap).sort((a,b)=>b.revenue-a.revenue).slice(0,15);
+    
+    // Customers — merge by kode
+    const cuMap = {};
+    first.customers.forEach(c=>{cuMap[c.kode]={...c};});
+    g.customers.forEach(c=>{
+      if(cuMap[c.kode]){cuMap[c.kode].revenue+=c.revenue;cuMap[c.kode].rev25+=c.rev25||0;cuMap[c.kode].rev26+=c.rev26||0;cuMap[c.kode].qty+=(c.qty||0);}
+      else{cuMap[c.kode]={...c};}
+    });
+    first.customers = Object.values(cuMap).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+    
+    // LOB — merge by label
+    const lobMap = {}; const lobMap25 = {}; const lobMap26 = {};
+    first.lob.labels.forEach((l,idx)=>{lobMap[l]=(lobMap[l]||0)+first.lob.values[idx];lobMap25[l]=(lobMap25[l]||0)+(first.lob.values25||[])[idx]||0;lobMap26[l]=(lobMap26[l]||0)+(first.lob.values26||[])[idx]||0;});
+    g.lob.labels.forEach((l,idx)=>{lobMap[l]=(lobMap[l]||0)+(g.lob.values[idx]||0);lobMap25[l]=(lobMap25[l]||0)+(g.lob.values25||[])[idx]||0;lobMap26[l]=(lobMap26[l]||0)+(g.lob.values26||[])[idx]||0;});
+    const loLabels = Object.keys(lobMap).sort((a,b)=>lobMap[b]-lobMap[a]);
+    first.lob.labels = loLabels;
+    first.lob.values = loLabels.map(l=>lobMap[l]);
+    first.lob.values25 = loLabels.map(l=>lobMap25[l]||0);
+    first.lob.values26 = loLabels.map(l=>lobMap26[l]||0);
+    
+    // Salespersons — merge by code
+    const spMap = {};
+    first.salespersons.forEach(sp=>{spMap[sp.code]={...sp};});
+    g.salespersons.forEach(sp=>{
+      if(spMap[sp.code]){spMap[sp.code].revenue+=sp.revenue;spMap[sp.code].qty+=sp.qty;spMap[sp.code].customers+=sp.customers;spMap[sp.code].rev25+=sp.rev25||0;spMap[sp.code].rev26+=sp.rev26||0;spMap[sp.code].qty25+=sp.qty25||0;spMap[sp.code].qty26+=sp.qty26||0;spMap[sp.code].cust25+=sp.cust25||0;spMap[sp.code].cust26+=sp.cust26||0;}
+      else{spMap[sp.code]={...sp};}
+    });
+    first.salespersons = Object.values(spMap).sort((a,b)=>b.revenue-a.revenue).slice(0,20);
+    
+    // SKU
+    first.total_sku += g.total_sku || 0;
+    first.total_sku_25 += g.total_sku_25 || 0;
+    first.total_sku_26 += g.total_sku_26 || 0;
+    
+    // Branch monthly
+    if(g.branch_monthly){
+      Object.entries(g.branch_monthly).forEach(([br, months])=>{
+        if(!first.branch_monthly[br]) first.branch_monthly[br] = {};
+        Object.entries(months).forEach(([m, data])=>{
+          if(!first.branch_monthly[br][m]) first.branch_monthly[br][m] = {rev25:0,rev26:0};
+          first.branch_monthly[br][m].rev25 += data.rev25||0;
+          first.branch_monthly[br][m].rev26 += data.rev26||0;
+        });
+      });
+    }
+  }
+  return first;
 }
 
 function getFilteredProcurement(f){
@@ -2081,9 +2243,11 @@ function resetFilters(){
   selSupplier.value='';
   monthDD.querySelectorAll('input').forEach(c=>c.checked=false);
   yearDD.querySelectorAll('input').forEach(c=>c.checked=false);
+  groupDD.querySelectorAll('input').forEach(c=>c.checked=false);
   updateBranchLabel();
   updateMonthLabel();
   updateYearLabel();
+  updateGroupLabel();
   applyFilters();
 }
 
@@ -2140,6 +2304,7 @@ applyFilters();
 window.toggleBranchDD = toggleBranchDD;
 window.toggleMonthDD = toggleMonthDD;
 window.toggleYearDD = toggleYearDD;
+window.toggleGroupDD = toggleGroupDD;
 window.applyFilters = applyFilters;
 window.resetFilters = resetFilters;
 window.refreshData = refreshData;
@@ -2148,6 +2313,7 @@ window.closeModal = closeModal;
 window.updateBranchLabel = updateBranchLabel;
 window.updateYearLabel = updateYearLabel;
 window.updateMonthLabel = updateMonthLabel;
+window.updateGroupLabel = updateGroupLabel;
 window.showCustGroupDetail = showCustGroupDetail;
 window.showSpcCustomers = showSpcCustomers;
 window.showStagnantDetail = showStagnantDetail;
