@@ -935,6 +935,7 @@ function getFilteredSales(f){
       const gbmI = DATA.group_br_month_items || {};
       const gbmC = DATA.group_br_month_cust || {};
       const itMap = {}, cuMap = {};
+      const grpTot = {}; // per-group totals for Top 10 Produk chart (rev/rev25/rev26) restricted to branch+month
       f.groups.forEach(grp=>{
         brs.forEach(br=>{
           // Items: [kode, nama, revenue, qty, rev25, rev26]
@@ -945,6 +946,8 @@ function getFilteredSales(f){
                 const k=a[0];
                 if(!itMap[k]) itMap[k]={kode:k,nama:a[1],revenue:0,qty:0,rev25:0,rev26:0};
                 itMap[k].revenue+=a[2]||0; itMap[k].qty+=a[3]||0; itMap[k].rev25+=a[4]||0; itMap[k].rev26+=a[5]||0;
+                if(!grpTot[grp]) grpTot[grp]={rev:0,r25:0,r26:0};
+                grpTot[grp].rev+=a[2]||0; grpTot[grp].r25+=a[4]||0; grpTot[grp].r26+=a[5]||0;
               });
             });
           }
@@ -982,6 +985,15 @@ function getFilteredSales(f){
           delete c._grpMap; delete c._maxRev;
         });
         sales.customers = newCust.slice(0,20);
+      }
+      // Rebuild Top 10 Produk (per-group totals) restricted to selected branches+months
+      // so the chart doesn't keep showing group totals across ALL branches.
+      if(Object.keys(grpTot).length && sales.products){
+        const gt = Object.entries(grpTot).map(([g,d])=>({g,rev:d.rev,r25:d.r25,r26:d.r26})).sort((a,b)=>b.rev-a.rev);
+        sales.products.labels = gt.map(x=>x.g);
+        sales.products.values = gt.map(x=>x.rev);
+        sales.products.values25 = gt.map(x=>x.r25);
+        sales.products.values26 = gt.map(x=>x.r26);
       }
     }
   }
