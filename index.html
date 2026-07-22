@@ -949,15 +949,20 @@ function getFilteredSales(f){
             });
           }
           // Customers: [kode, nama, revenue, rev25, rev26]
+          // Also accumulate per-group breakdown so modal "Detail per Group Item" is not empty.
           const cBr = gbmC[grp] && gbmC[grp][br];
           if(cBr){
             selMonths.forEach(m=>{
               (cBr[m]||[]).forEach(a=>{
                 const k=a[0];
-                if(!cuMap[k]) cuMap[k]={kode:k,nama:a[1],revenue:0,rev25:0,rev26:0,branch:br,_maxRev:a[2]||0};
+                if(!cuMap[k]) cuMap[k]={kode:k,nama:a[1],revenue:0,rev25:0,rev26:0,branch:br,_maxRev:a[2]||0,_grpMap:{}};
                 const r=cuMap[k];
                 r.revenue+=a[2]||0; r.rev25+=a[3]||0; r.rev26+=a[4]||0;
                 if((a[2]||0)>r._maxRev){ r._maxRev=a[2]; r.branch=br; }
+                if(!r._grpMap[grp]) r._grpMap[grp]={revenue:0,rev25:0,rev26:0};
+                r._grpMap[grp].revenue+=a[2]||0;
+                r._grpMap[grp].rev25+=a[3]||0;
+                r._grpMap[grp].rev26+=a[4]||0;
               });
             });
           }
@@ -971,7 +976,13 @@ function getFilteredSales(f){
         sales.total_sku_25 = newItems.filter(it=>(it.rev25||0)>0).length;
         sales.total_sku_26 = newItems.filter(it=>(it.rev26||0)>0).length;
       }
-      if(newCust.length){ newCust.forEach(c=>delete c._maxRev); sales.customers = newCust.slice(0,20); }
+      if(newCust.length){
+        newCust.forEach(c=>{
+          c.groups=Object.entries(c._grpMap||{}).map(([group,d])=>({group,revenue:d.revenue||0,rev25:d.rev25||0,rev26:d.rev26||0})).sort((a,b)=>b.revenue-a.revenue);
+          delete c._grpMap; delete c._maxRev;
+        });
+        sales.customers = newCust.slice(0,20);
+      }
     }
   }
   
