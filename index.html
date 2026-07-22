@@ -936,6 +936,8 @@ function getFilteredSales(f){
       const gbmC = DATA.group_br_month_cust || {};
       const itMap = {}, cuMap = {};
       const grpTot = {}; // per-group totals for Top 10 Produk chart (rev/rev25/rev26) restricted to branch+month
+      const icm = DATA.filters.item_class_map || {};
+      const clsAll = {}, cls25 = {}, cls26 = {}; // per-group class breakdown restricted to branch+month
       f.groups.forEach(grp=>{
         brs.forEach(br=>{
           // Items: [kode, nama, revenue, qty, rev25, rev26]
@@ -948,6 +950,14 @@ function getFilteredSales(f){
                 itMap[k].revenue+=a[2]||0; itMap[k].qty+=a[3]||0; itMap[k].rev25+=a[4]||0; itMap[k].rev26+=a[5]||0;
                 if(!grpTot[grp]) grpTot[grp]={rev:0,r25:0,r26:0};
                 grpTot[grp].rev+=a[2]||0; grpTot[grp].r25+=a[4]||0; grpTot[grp].r26+=a[5]||0;
+                // Class breakdown per group, branch+month aware (item_class_map lookup)
+                const cls = icm[k];
+                if(cls){
+                  if(!clsAll[grp]){ clsAll[grp]={}; cls25[grp]={}; cls26[grp]={}; }
+                  clsAll[grp][cls]=(clsAll[grp][cls]||0)+(a[2]||0);
+                  cls25[grp][cls]=(cls25[grp][cls]||0)+(a[4]||0);
+                  cls26[grp][cls]=(cls26[grp][cls]||0)+(a[5]||0);
+                }
               });
             });
           }
@@ -994,6 +1004,20 @@ function getFilteredSales(f){
         sales.products.values = gt.map(x=>x.rev);
         sales.products.values25 = gt.map(x=>x.r25);
         sales.products.values26 = gt.map(x=>x.r26);
+      }
+      // Override class breakdown with branch+month-aware version (item_class_map based).
+      // classes_month has no branch dimension, so "Detail per Class" modal was still
+      // summing all branches. This rebuild is per selected branch(es)+month(s).
+      if(Object.keys(clsAll).length && sales.products){
+        const sortDesc=o=>Object.fromEntries(Object.entries(o).sort((a,b)=>b[1]-a[1]));
+        Object.keys(clsAll).forEach(grp=>{
+          if(!sales.products.classes) sales.products.classes={};
+          if(!sales.products.classes25) sales.products.classes25={};
+          if(!sales.products.classes26) sales.products.classes26={};
+          sales.products.classes[grp]=sortDesc(clsAll[grp]);
+          sales.products.classes25[grp]=sortDesc(cls25[grp]);
+          sales.products.classes26[grp]=sortDesc(cls26[grp]);
+        });
       }
     }
   }

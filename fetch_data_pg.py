@@ -821,6 +821,7 @@ dashboard = {
         'group_items': {k: list(v) for k, v in group_items.items()},
         'group_names': group_name_map,
         'class_names': class_name_map,
+        'item_class_map': item_class_map,
     },
     'kpis': kpis,
     'default': {
