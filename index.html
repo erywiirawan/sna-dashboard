@@ -900,6 +900,30 @@ function getFilteredSales(f){
       MONTHS.forEach((m,mi)=>{
         if(!f.months.includes(m)){ sales.monthly.y2025[mi]=0; sales.monthly.y2026[mi]=0; }
       });
+      // Rebuild class breakdowns (classes/classes25/classes26) from per-month data,
+      // restricted to selected months — so YoY class detail compares like-for-like periods.
+      if(sales.products && sales.products.classes_month){
+        const cm = sales.products.classes_month;
+        const newAll={}, new25={}, new26={};
+        Object.keys(cm).forEach(grp=>{
+          const aggAll={}, agg25={}, agg26={};
+          f.months.forEach(m=>{
+            const clsObj = cm[grp] && cm[grp][m];
+            if(!clsObj) return;
+            Object.entries(clsObj).forEach(([cls,rv])=>{
+              const r25=rv[0]||0, r26=rv[1]||0;
+              agg25[cls]=(agg25[cls]||0)+r25;
+              agg26[cls]=(agg26[cls]||0)+r26;
+              aggAll[cls]=(aggAll[cls]||0)+r25+r26;
+            });
+          });
+          const sortDesc=o=>Object.fromEntries(Object.entries(o).sort((a,b)=>b[1]-a[1]));
+          newAll[grp]=sortDesc(aggAll); new25[grp]=sortDesc(agg25); new26[grp]=sortDesc(agg26);
+        });
+        sales.products.classes=newAll;
+        sales.products.classes25=new25;
+        sales.products.classes26=new26;
+      }
     }
     // Recompute totals from adjusted monthly
     sales.total25 = sales.monthly.y2025.reduce((a,b)=>a+b,0);
@@ -1186,6 +1210,11 @@ function mergeGroupCaches(groups){
     first.products.values25 = pLabels.map(l=>prodMap25[l]||0);
     first.products.values26 = pLabels.map(l=>prodMap26[l]||0);
     first.products.classes = {}; first.products.classes25 = {}; first.products.classes26 = {};
+    // Preserve per-month class breakdown across merged groups (keyed by unique group code)
+    first.products.classes_month = first.products.classes_month || {};
+    if(g.products && g.products.classes_month){
+      Object.assign(first.products.classes_month, g.products.classes_month);
+    }
     
     // Items — merge by kode
     const itMap = {};

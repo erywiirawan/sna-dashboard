@@ -204,8 +204,10 @@ for item_code, si in stock_by_item.items():
 print("Generating dashboard JSON...")
 
 # Helper: aggregate sales with optional filters
-def agg_sales(branch=None, months=None, supplier=None, group=None):
-    """Aggregate sales data with optional filters. Returns dict with all aggregations."""
+def agg_sales(branch=None, months=None, supplier=None, group=None, class_month=False):
+    """Aggregate sales data with optional filters. Returns dict with all aggregations.
+    class_month=True adds products.classes_month[grp][month][cls]=[rev25,rev26] so the
+    frontend can slice class breakdowns by selected months (used only for group_cache)."""
     filtered = sales
     if branch:
         filtered = [s for s in filtered if s['cabang'] == branch]
@@ -246,6 +248,8 @@ def agg_sales(branch=None, months=None, supplier=None, group=None):
     gr_26 = defaultdict(float)
     gr_class_25 = defaultdict(lambda: defaultdict(float))
     gr_class_26 = defaultdict(lambda: defaultdict(float))
+    # Per-group per-month class breakdown: gr_class_month[grp][month][cls] = [rev25, rev26]
+    gr_class_month = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: [0.0, 0.0]))) if class_month else None
     for s in filtered:
         gr[s['grup_item']] += s['jumlah']
         cls = item_class_map.get(s['item'], '')
@@ -257,6 +261,10 @@ def agg_sales(branch=None, months=None, supplier=None, group=None):
         else:
             gr_26[s['grup_item']] += s['jumlah']
             if cls: gr_class_26[s['grup_item']][cls] += s['jumlah']
+        if class_month and cls:
+            slot = gr_class_month[s['grup_item']][s['bulan']][cls]
+            if s['tahun']==2025: slot[0] += s['jumlah']
+            else: slot[1] += s['jumlah']
     gr_sorted = sorted(gr.items(), key=lambda x: x[1], reverse=True)[:12]
 
     # Items
@@ -346,7 +354,8 @@ def agg_sales(branch=None, months=None, supplier=None, group=None):
         'products': {'labels':[g[0] for g in gr_sorted],'values':[g[1] for g in gr_sorted],'classes':{g[0]:dict(sorted(gr_class.get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in gr_sorted},
             'values25':[gr_25.get(g[0],0) for g in gr_sorted],'values26':[gr_26.get(g[0],0) for g in gr_sorted],
             'classes25':{g[0]:dict(sorted(gr_class_25.get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in gr_sorted},
-            'classes26':{g[0]:dict(sorted(gr_class_26.get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in gr_sorted}},
+            'classes26':{g[0]:dict(sorted(gr_class_26.get(g[0],{}).items(), key=lambda x:x[1], reverse=True)) for g in gr_sorted},
+            **({'classes_month':{g[0]:{m:{c:v for c,v in cls.items()} for m,cls in gr_class_month.get(g[0],{}).items()} for g in gr_sorted}} if class_month else {})},
         'items': [{'kode':i[0],'nama':it_name.get(i[0],i[0])[:40],'revenue':i[1],'qty':it_qty[i[0]],'rev25':it_rev25.get(i[0],0),'rev26':it_rev26.get(i[0],0)} for i in top_items],
         'total_sku': len(it_rev),
         'total_sku_25': total_sku_25,
@@ -537,7 +546,7 @@ for s in sales:
 # Pre-compute per-group sales caches
 group_sales_cache = {}
 for grp in all_groups:
-    group_sales_cache[grp] = agg_sales(group=grp)
+    group_sales_cache[grp] = agg_sales(group=grp, class_month=True)
 
 print(f"  Group cache: {len(group_sales_cache)} groups")
 
