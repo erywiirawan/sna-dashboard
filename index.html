@@ -928,6 +928,51 @@ function getFilteredSales(f){
     // Recompute totals from adjusted monthly
     sales.total25 = sales.monthly.y2025.reduce((a,b)=>a+b,0);
     sales.total26 = sales.monthly.y2026.reduce((a,b)=>a+b,0);
+    // Rebuild Top Item & Top Customer restricted to selected branches (+ months) so they
+    // don't stay mixed across all branches. Uses per-group-branch-month compact caches.
+    if(hasBr && (DATA.group_br_month_items || DATA.group_br_month_cust)){
+      const selMonths = monthActive ? f.months : MONTHS;
+      const gbmI = DATA.group_br_month_items || {};
+      const gbmC = DATA.group_br_month_cust || {};
+      const itMap = {}, cuMap = {};
+      f.groups.forEach(grp=>{
+        brs.forEach(br=>{
+          // Items: [kode, nama, revenue, qty, rev25, rev26]
+          const iBr = gbmI[grp] && gbmI[grp][br];
+          if(iBr){
+            selMonths.forEach(m=>{
+              (iBr[m]||[]).forEach(a=>{
+                const k=a[0];
+                if(!itMap[k]) itMap[k]={kode:k,nama:a[1],revenue:0,qty:0,rev25:0,rev26:0};
+                itMap[k].revenue+=a[2]||0; itMap[k].qty+=a[3]||0; itMap[k].rev25+=a[4]||0; itMap[k].rev26+=a[5]||0;
+              });
+            });
+          }
+          // Customers: [kode, nama, revenue, rev25, rev26]
+          const cBr = gbmC[grp] && gbmC[grp][br];
+          if(cBr){
+            selMonths.forEach(m=>{
+              (cBr[m]||[]).forEach(a=>{
+                const k=a[0];
+                if(!cuMap[k]) cuMap[k]={kode:k,nama:a[1],revenue:0,rev25:0,rev26:0,branch:br,_maxRev:a[2]||0};
+                const r=cuMap[k];
+                r.revenue+=a[2]||0; r.rev25+=a[3]||0; r.rev26+=a[4]||0;
+                if((a[2]||0)>r._maxRev){ r._maxRev=a[2]; r.branch=br; }
+              });
+            });
+          }
+        });
+      });
+      const newItems = Object.values(itMap).sort((a,b)=>b.revenue-a.revenue);
+      const newCust  = Object.values(cuMap).sort((a,b)=>b.revenue-a.revenue);
+      if(newItems.length){
+        sales.items = newItems.slice(0,15);
+        sales.total_sku = newItems.length;
+        sales.total_sku_25 = newItems.filter(it=>(it.rev25||0)>0).length;
+        sales.total_sku_26 = newItems.filter(it=>(it.rev26||0)>0).length;
+      }
+      if(newCust.length){ newCust.forEach(c=>delete c._maxRev); sales.customers = newCust.slice(0,20); }
+    }
   }
   
   // Supplier filter: use pre-computed supplier cache

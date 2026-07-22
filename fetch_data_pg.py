@@ -550,6 +550,57 @@ for grp in all_groups:
 
 print(f"  Group cache: {len(group_sales_cache)} groups")
 
+# Per-group per-branch per-month items & customers (for accurate Top Item / Top Customer
+# when Group + Branch (+ Month) filters are active). Compact array format to save space.
+# items: [kode, nama, revenue, qty, rev25, rev26]  | custs: [kode, nama, revenue, rev25, rev26]
+g_bm_items = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {'rev':defaultdict(float),'qty':defaultdict(float),'r25':defaultdict(float),'r26':defaultdict(float),'nm':{}})))
+g_bm_cust  = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {'rev':defaultdict(float),'r25':defaultdict(float),'r26':defaultdict(float),'nm':{}})))
+for s in sales:
+    grp = s['grup_item']
+    if not grp: continue
+    br, m = s['cabang'], s['bulan']
+    it = s['item']
+    di = g_bm_items[grp][br][m]
+    di['rev'][it] += s['jumlah']; di['qty'][it] += s['qty']
+    if s['keterangan']: di['nm'][it] = s['keterangan'][:40]
+    if s['tahun']==2025: di['r25'][it] += s['jumlah']
+    else: di['r26'][it] += s['jumlah']
+    if s['kode_pelanggan']:
+        cu = s['kode_pelanggan']
+        dc = g_bm_cust[grp][br][m]
+        dc['rev'][cu] += s['jumlah']
+        if s['pelanggan']: dc['nm'][cu] = s['pelanggan'][:30]
+        if s['tahun']==2025: dc['r25'][cu] += s['jumlah']
+        else: dc['r26'][cu] += s['jumlah']
+
+def _ser_gbm_items(g):
+    out = {}
+    for grp, brs in g.items():
+        out[grp] = {}
+        for br, mos in brs.items():
+            out[grp][br] = {}
+            for m, d in mos.items():
+                rows = [[k, d['nm'].get(k, k), round(d['rev'][k]), round(d['qty'][k]), round(d['r25'].get(k,0)), round(d['r26'].get(k,0))] for k in d['rev']]
+                rows.sort(key=lambda x: x[2], reverse=True)
+                out[grp][br][m] = rows
+    return out
+
+def _ser_gbm_cust(g):
+    out = {}
+    for grp, brs in g.items():
+        out[grp] = {}
+        for br, mos in brs.items():
+            out[grp][br] = {}
+            for m, d in mos.items():
+                rows = [[k, d['nm'].get(k, k), round(d['rev'][k]), round(d['r25'].get(k,0)), round(d['r26'].get(k,0))] for k in d['rev']]
+                rows.sort(key=lambda x: x[2], reverse=True)
+                out[grp][br][m] = rows
+    return out
+
+group_br_month_items = _ser_gbm_items(g_bm_items)
+group_br_month_cust  = _ser_gbm_cust(g_bm_cust)
+print(f"  Group br-month items/cust cache built")
+
 # ============================================================
 # PROCUREMENT aggregation with filters
 # ============================================================
@@ -786,6 +837,8 @@ dashboard = {
     'supplier_branch_sp': supplier_branch_sp,
     'supplier_branch_cache': supplier_branch_cache,
     'group_cache': group_sales_cache,
+    'group_br_month_items': group_br_month_items,
+    'group_br_month_cust': group_br_month_cust,
     'branch_stock_cache': branch_stock_cache,
     'stock_month_cache': stock_month_cache,
     'branch_month_stock_cache': branch_month_stock_cache,
