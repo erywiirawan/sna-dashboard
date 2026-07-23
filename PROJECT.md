@@ -60,9 +60,10 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 - CSV quoting issue: Google Sheets export punya embedded commas → pakai Python csv module, bukan awk
 - `sna-dashboard-rouge.vercel.app` = production URL (auto-alias)
 - `build_dashboard.py` harus dijalankan SETIAP kali `fetch_data.py` atau `index.html` JS diubah
-- `getActiveFilters()` return `{branches[], months, supplier, years}` — `branches` multi-select array, `supplier` singular string
-- Cache structure: `branch_cache` (per-branch), `month_cache` (per-month), `branch_month_cache` (per-branch-per-month), `supplier_cache` (per-supplier), `supplier_branch_sp` (per-supplier-per-branch salesperson), `supplier_branch_cache` (per-supplier-per-branch full aggregation: monthly, products, SKU, items, customers, LOB)
+- `getActiveFilters()` return `{branches[], months, supplier, years, groups[]}` — multi-select array utk branch/month/year/group, `supplier` singular string
+- Cache structure: `branch_cache`, `month_cache`, `branch_month_cache`, `supplier_cache`, `supplier_branch_sp`, `supplier_branch_cache`, `group_cache`, `group_br_month_items`, `group_br_month_cust`
 - `supplier_branch_sp` key format: `supplier_name` → per-branch salesperson data, `supplier_name_months` → per-branch-month salesperson data
+- **Refresh WAJIB jalur PG** (`fetch_data_pg.py` via `refresh-vps-local.sh`). `fetch_data.py` (Sheets lama) TIDAK emit `filters.groups` / `group_cache` → dropdown Group Item kosong. Cron harian: `~/.hermes/scripts/sna-dashboard-refresh.bash` → `refresh-vps-local.sh`. JANGAN panggil `fetch_data.py` untuk production.
 
 ## Roadmap
 - [x] Sales dashboard (2025+2026)
@@ -85,6 +86,7 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-07-23 | Fix: dropdown Group Item kosong — cron harian (`sna-dashboard-refresh.bash`) masih panggil `fetch_data.py` (Sheets) yang tak emit `filters.groups`/`group_cache`. Ganti ke `refresh-vps-local.sh` (PG). Regenerate + deploy JSON 36 groups. |
 | 2026-06-12 | Initial: sales dashboard + deploy ke Vercel |
 | 2026-06-12 | Added stock data source (non-cement, 4,226 items) |
 | 2026-06-12 | Created PROJECT.md |

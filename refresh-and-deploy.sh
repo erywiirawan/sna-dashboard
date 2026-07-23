@@ -1,12 +1,6 @@
 #!/bin/bash
-# Refresh data dari Google Sheets + deploy JSON
+# Refresh data dari PostgreSQL + deploy JSON ke Vercel.
+# Alias ke jalur PG (refresh-vps-local.sh). JANGAN pakai fetch_data.py (Sheets)
+# karena tidak emit filters.groups / group_cache → dropdown Group Item kosong.
 set -e
-echo "📥 Fetching data dari Google Sheets..."
-python3 /root/projects/sna-dashboard/fetch_data.py
-
-echo "🚀 Deploying ke Vercel..."
-cd /root/projects/sna-dashboard
-vercel --prod --yes --token $(cat ~/.hermes/secrets/vercel_token)
-
-echo ""
-echo "✅ Dashboard data updated: https://sna-dashboard-rouge.vercel.app"
+bash /root/projects/sna-dashboard/refresh-vps-local.sh
