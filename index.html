@@ -33,6 +33,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .filter-bar select:focus{border-color:var(--accent);outline:none}
 .month-container{position:relative}
 .branch-container{position:relative}
+.region-container{position:relative}
 .year-container{position:relative}
 .group-container{position:relative}
 .year-btn{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;min-width:100px;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center}
@@ -135,6 +136,10 @@ tr:hover td{background:rgba(108,92,231,.05)}
 </div>
 
 <div class="filter-bar">
+  <div class="region-container"><label>Region</label><br>
+    <div class="month-btn" id="regionBtn" onclick="toggleRegionDD()">Semua Region <span>▾</span></div>
+    <div class="month-dropdown" id="regionDD"></div>
+  </div>
   <div class="branch-container"><label>Cabang</label><br>
     <div class="month-btn" id="branchBtn" onclick="toggleBranchDD()">Semua Cabang <span>▾</span></div>
     <div class="month-dropdown" id="branchDD"></div>
@@ -279,11 +284,12 @@ const MONTHS = DATA.filters.months;
 const MONTH_IDX = {}; MONTHS.forEach((m,i)=>MONTH_IDX[m]=i);
 
 // Per-tab filter state — {sales:{branches:[],months:[],supplier:'',years:[]}, ...}
-const tabFilters = {sales:{branches:[],months:[],supplier:'',years:[],groups:[]},stock:{branches:[],months:[],supplier:'',years:[],groups:[]},procurement:{branches:[],months:[],supplier:'',years:[],groups:[]},supplychain:{branches:[],months:[],supplier:'',years:[],groups:[]}};
+const tabFilters = {sales:{regions:[],branches:[],months:[],supplier:'',years:[],groups:[]},stock:{regions:[],branches:[],months:[],supplier:'',years:[],groups:[]},procurement:{regions:[],branches:[],months:[],supplier:'',years:[],groups:[]},supplychain:{regions:[],branches:[],months:[],supplier:'',years:[],groups:[]}};
 
 // Save current filter UI to a tab's state
 function saveFilterState(tabId){
   tabFilters[tabId] = {
+    regions: getSelectedRegions(),
     branches: getSelectedBranches(),
     months: getSelectedMonths(),
     supplier: selSupplier.value,
@@ -295,6 +301,10 @@ function saveFilterState(tabId){
 // Restore filter UI from a tab's state
 function restoreFilterState(tabId){
   const s = tabFilters[tabId];
+  // Regions
+  regionDD.querySelectorAll('input').forEach(c=>{ c.checked = (s.regions||[]).includes(c.value); });
+  updateRegionLabel();
+  applyRegionToBranchDD();
   // Branches
   branchDD.querySelectorAll('input').forEach(c=>{ c.checked = s.branches.includes(c.value); });
   updateBranchLabel();
@@ -330,6 +340,40 @@ function toggleBranchDD(){ branchDD.classList.toggle('show'); }
 document.addEventListener('click',e=>{ if(!e.target.closest('.branch-container'))branchDD.classList.remove('show'); });
 function getSelectedBranches(){ return Array.from(branchDD.querySelectorAll('input:checked')).map(c=>c.value); }
 function updateBranchLabel(){ const bs=getSelectedBranches();document.getElementById('branchBtn').innerHTML=(bs.length===0||bs.length===DATA.filters.branches.length?'Semua Cabang':bs.join(', '))+' <span>▾</span>'; }
+
+// Region filter — multi-select. Memilih region = shortcut memilih cabang-cabang di region itu.
+const regionDD = document.getElementById('regionDD');
+const REGION_BRANCHES = DATA.filters.region_branches || {};
+(DATA.filters.regions||[]).forEach(r=>{
+  const n=(REGION_BRANCHES[r]||[]).length;
+  const l=document.createElement('label');
+  l.innerHTML=`<input type="checkbox" value="${r}" onchange="onRegionChange()"> ${r} <span style="font-size:10px;color:var(--dim)">${n} cabang</span>`;
+  regionDD.appendChild(l);
+});
+function toggleRegionDD(){ regionDD.classList.toggle('show'); }
+document.addEventListener('click',e=>{ if(!e.target.closest('.region-container'))regionDD.classList.remove('show'); });
+function getSelectedRegions(){ return Array.from(regionDD.querySelectorAll('input:checked')).map(c=>c.value); }
+function updateRegionLabel(){ const rs=getSelectedRegions(); const all=DATA.filters.regions||[]; document.getElementById('regionBtn').innerHTML=(rs.length===0||rs.length===all.length?'Semua Region':rs.join(', '))+' <span>▾</span>'; }
+// Cabang yang boleh tampil = gabungan cabang dari region terpilih (kosong = semua)
+function allowedBranchesForRegions(regions){
+  if(!regions||regions.length===0) return null; // null = semua cabang
+  const set=new Set();
+  regions.forEach(r=>(REGION_BRANCHES[r]||[]).forEach(b=>set.add(b)));
+  return set;
+}
+// Terapkan pembatasan ke dropdown Cabang: sembunyikan cabang di luar region, uncheck yang tak berlaku
+function applyRegionToBranchDD(){
+  const allowed=allowedBranchesForRegions(getSelectedRegions());
+  branchDD.querySelectorAll('label').forEach(lbl=>{
+    const cb=lbl.querySelector('input'); if(!cb) return;
+    const ok = !allowed || allowed.has(cb.value);
+    lbl.style.display = ok ? '' : 'none';
+    if(!ok && cb.checked) cb.checked=false;
+  });
+  updateBranchLabel();
+}
+function onRegionChange(){ updateRegionLabel(); applyRegionToBranchDD(); }
+
 const selSupplier = document.getElementById('selSupplier');
 DATA.filters.suppliers.forEach(s=>{ const o=document.createElement('option');o.value=s;o.textContent=s;selSupplier.appendChild(o); });
 
@@ -385,12 +429,20 @@ function getSelectedMonths(){ return Array.from(monthDD.querySelectorAll('input:
 function updateMonthLabel(){ const ms=getSelectedMonths();document.getElementById('monthBtn').innerHTML=(ms.length===0||ms.length===12?'Semua Bulan':ms.join(', '))+' <span>▾</span>'; }
 
 function getActiveFilters(){
-  return { branches:getSelectedBranches(), months:getSelectedMonths(), supplier:selSupplier.value, years:getSelectedYears(), groups:getSelectedGroups() };
+  const regions=getSelectedRegions();
+  let branches=getSelectedBranches();
+  // Kalau region dipilih tapi tak ada cabang dicentang manual → pakai semua cabang di region itu.
+  if(regions.length>0 && branches.length===0){
+    const allowed=allowedBranchesForRegions(regions);
+    branches=allowed?Array.from(allowed):[];
+  }
+  return { regions, branches, months:getSelectedMonths(), supplier:selSupplier.value, years:getSelectedYears(), groups:getSelectedGroups() };
 }
 
 function updateFilterBadge(f){
   const el=document.getElementById('filterBadge');
   const parts=[];
+  if(f.regions&&f.regions.length>0&&f.regions.length<(DATA.filters.regions||[]).length)parts.push('Region: '+f.regions.join(', '));
   if(f.branches.length>0&&f.branches.length<DATA.filters.branches.length)parts.push(f.branches.join(', '));
   if(f.months.length>0&&f.months.length<12)parts.push(f.months.join('-'));
   if(f.supplier)parts.push(f.supplier);
@@ -1365,8 +1417,38 @@ function mergeGroupCaches(groups){
   return first;
 }
 
+function mergeProcCaches(regions){
+  const cache=DATA.proc_region_cache||{};
+  const valid=regions.filter(r=>cache[r]);
+  if(valid.length===0)return JSON.parse(JSON.stringify(DATA.default.procurement));
+  if(valid.length===1)return JSON.parse(JSON.stringify(cache[valid[0]]));
+  // Gabung beberapa region: jumlah total/nilai, gabung regions/suppliers/categories, gabung pipeline.
+  const base=JSON.parse(JSON.stringify(cache[valid[0]]));
+  const supMap={}, katMap={}, regMap={};
+  const pipeLabels=base.pipeline.labels.slice();
+  const pv=pipeLabels.map(()=>0);
+  base.total=0; base.nilai=0;
+  valid.forEach(r=>{
+    const c=cache[r];
+    base.total+=c.total; base.nilai+=c.nilai;
+    c.pipeline.values.forEach((v,i)=>{ pv[i]+=v; });
+    c.regions.labels.forEach((l,i)=>{ const m=regMap[l]||(regMap[l]={count:0,nilai:0,berat:0}); m.count+=c.regions.count[i]; m.nilai+=c.regions.nilai[i]; m.berat+=c.regions.berat[i]; });
+    c.suppliers.labels.forEach((l,i)=>{ const m=supMap[l]||(supMap[l]={count:0,nilai:0}); m.count+=c.suppliers.count[i]; m.nilai+=c.suppliers.nilai[i]; });
+    c.categories.labels.forEach((l,i)=>{ const m=katMap[l]||(katMap[l]={count:0,nilai:0}); m.count+=c.categories.count[i]; m.nilai+=c.categories.nilai[i]; });
+  });
+  base.pipeline={labels:pipeLabels,values:pv};
+  const regS=Object.entries(regMap).sort((a,b)=>b[1].nilai-a[1].nilai);
+  base.regions={labels:regS.map(x=>x[0]),count:regS.map(x=>x[1].count),nilai:regS.map(x=>x[1].nilai),berat:regS.map(x=>x[1].berat)};
+  const supS=Object.entries(supMap).sort((a,b)=>b[1].nilai-a[1].nilai).slice(0,10);
+  base.suppliers={labels:supS.map(x=>x[0]),count:supS.map(x=>x[1].count),nilai:supS.map(x=>x[1].nilai)};
+  const katS=Object.entries(katMap).sort((a,b)=>b[1].nilai-a[1].nilai).slice(0,10);
+  base.categories={labels:katS.map(x=>x[0]),count:katS.map(x=>x[1].count),nilai:katS.map(x=>x[1].nilai)};
+  return base;
+}
+
 function getFilteredProcurement(f){
-  const p=JSON.parse(JSON.stringify(DATA.default.procurement));
+  const regions=(f.regions||[]);
+  const p = regions.length>0 ? mergeProcCaches(regions) : JSON.parse(JSON.stringify(DATA.default.procurement));
   if(!f.supplier)return p;
   // Filter to selected supplier
   const idx=p.suppliers.labels.indexOf(f.supplier);
@@ -2368,6 +2450,9 @@ function applyFilters(){
 }
 
 function resetFilters(){
+  regionDD.querySelectorAll('input').forEach(c=>c.checked=false);
+  updateRegionLabel();
+  applyRegionToBranchDD();
   branchDD.querySelectorAll('input').forEach(c=>c.checked=false);
   selSupplier.value='';
   monthDD.querySelectorAll('input').forEach(c=>c.checked=false);
@@ -2430,6 +2515,9 @@ async function refreshData(){
 applyFilters();
 
 // Expose functions needed by HTML onclick/onchange handlers
+window.toggleRegionDD = toggleRegionDD;
+window.onRegionChange = onRegionChange;
+window.updateRegionLabel = updateRegionLabel;
 window.toggleBranchDD = toggleBranchDD;
 window.toggleMonthDD = toggleMonthDD;
 window.toggleYearDD = toggleYearDD;

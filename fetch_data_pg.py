@@ -108,6 +108,32 @@ all_months = month_order
 all_items = sorted(set(s['item'] for s in sales))
 
 # ============================================================
+# REGIONAL MAPPING (dari PostgreSQL dim_cabang)
+# ============================================================
+# branch_region: kode_cabang -> regional ; region_branches: regional -> [kode_cabang aktif]
+branch_region = {}
+region_branches = defaultdict(list)
+try:
+    cabang_rows = load_csv(os.path.join(PG_DIR, 'pg_cabang.csv'))
+    # 0=kode_cabang 1=nama_cabang 2=regional 3=area
+    for row in cabang_rows[1:]:
+        if len(row) < 3: continue
+        kode = row[0].strip()
+        reg = row[2].strip()
+        if kode and reg and reg not in ('#N/A', 'NULL'):
+            branch_region[kode] = reg
+    print(f"  Cabang mapping: {len(branch_region)} branches -> region")
+except FileNotFoundError:
+    print("  pg_cabang.csv tidak ada — skip regional mapping")
+# Hanya region untuk cabang yang punya transaksi (all_branches)
+for br in all_branches:
+    reg = branch_region.get(br)
+    if reg:
+        region_branches[reg].append(br)
+all_regions = sorted(region_branches.keys())
+region_branches = {r: sorted(region_branches[r]) for r in all_regions}
+
+# ============================================================
 # STOCK DATA (dari PostgreSQL pg_stock.csv)
 # ============================================================
 print("Loading stock data (PostgreSQL)...")
@@ -604,12 +630,15 @@ print(f"  Group br-month items/cust cache built")
 # ============================================================
 # PROCUREMENT aggregation with filters
 # ============================================================
-def agg_procurement(supplier=None, region=None):
+def agg_procurement(supplier=None, region=None, reg_values=None):
     filtered = [p for p in proc if p['status']!='Batal']
     if supplier:
         filtered = [p for p in filtered if p['supplier'] == supplier]
     if region:
         filtered = [p for p in filtered if p['reg'] == region]
+    if reg_values is not None:
+        rv = set(reg_values)
+        filtered = [p for p in filtered if p['reg'] in rv]
 
     status_count = defaultdict(int)
     by_reg = defaultdict(lambda: {'count':0,'nilai':0,'berat':0})
@@ -635,6 +664,18 @@ def agg_procurement(supplier=None, region=None):
     }
 
 default_proc = agg_procurement()
+
+# Per-region procurement cache (pakai taksonomi region sales/stock dari dim_cabang).
+# Catatan: di procurement, 'DISL' adalah reg tersendiri, tapi di taksonomi cabang DISL = cabang di region NTT.
+proc_reg_values = set(p['reg'] for p in proc if p['status']!='Batal' and p['reg'])
+proc_region_map = {}
+for reg in all_regions:
+    vals = {reg} & proc_reg_values
+    proc_region_map[reg] = vals
+# NTT juga mencakup reg 'DISL' di data procurement
+if 'NTT' in proc_region_map and 'DISL' in proc_reg_values:
+    proc_region_map['NTT'] = proc_region_map['NTT'] | {'DISL'}
+proc_region_cache = {reg: agg_procurement(reg_values=vals) for reg, vals in proc_region_map.items() if vals}
 
 def _parse_stock_month(tanggal):
     """Parse stock date to 3-letter month: '31 January 2026' -> 'Jan', '28-Feb' -> 'Feb'"""
@@ -820,6 +861,8 @@ dashboard = {
         'groups': all_groups,
         'group_items': {k: list(v) for k, v in group_items.items()},
         'group_names': group_name_map,
+        'regions': all_regions,
+        'region_branches': region_branches,
         'class_names': class_name_map,
         'item_class_map': item_class_map,
     },
@@ -845,6 +888,7 @@ dashboard = {
     'branch_month_stock_cache': branch_month_stock_cache,
     'branch_stagnant_6m': branch_stagnant_6m,
     'branch_stagnant_items': branch_stagnant_items,
+    'proc_region_cache': proc_region_cache,
 }
 
 out_path = os.environ.get('OUT_PATH', '/tmp/dashboard_data_pg.json')

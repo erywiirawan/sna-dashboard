@@ -13,6 +13,7 @@ $PSQL -c "\copy (SELECT kode_item,nama_item,grup_item,kategori_item,item_jp,satu
 $PSQL -c "\copy (SELECT kode_customer,nama_customer FROM dim_customer) TO '/tmp/pg_customer.csv' WITH CSV HEADER"
 $PSQL -c "\copy (SELECT kode,nama_barang,satuan,group_code,group_name,class_code,class_name,type_code,supplier FROM dim_master_item) TO '/tmp/pg_master.csv' WITH CSV HEADER"
 $PSQL -c "\copy (SELECT status,reg,cab,po,kode,nama,kategori,supplier,qty_po,nilai_beli,tgl_po,total_berat FROM fact_procurement) TO '/tmp/pg_procurement.csv' WITH CSV HEADER"
+$PSQL -c "\copy (SELECT kode_cabang,nama_cabang,regional,area FROM dim_cabang) TO '/tmp/pg_cabang.csv' WITH CSV HEADER"
 
 echo "[$(date '+%F %T')] Generate dashboard_data.json..."
 PG_DIR=/tmp OUT_PATH=/root/projects/sna-dashboard/dashboard_data.json /usr/bin/python3 /root/projects/sna-dashboard/fetch_data_pg.py
