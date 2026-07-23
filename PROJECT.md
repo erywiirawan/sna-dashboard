@@ -84,7 +84,7 @@ Dashboard visual penjualan PT Saka Niaga Sukses Abadi (SNA). Menggabungkan data 
 - [ ] Auto-refresh data dari Google Sheets
 
 ## Change Log
-| Date | Change |
+- 2026-07-23: feat: Region filter — multi-select dropdown auto-filters Cabang, berlaku di semua tab. Backend emits regions+region_branches+proc_region_cache. Fixed dim_cabang mapping (PRJ→BALI, SBY→SBY, PRJ-NTB→NTB).
 |------|--------|
 | 2026-07-23 | Fix: dropdown Group Item kosong — cron harian (`sna-dashboard-refresh.bash`) masih panggil `fetch_data.py` (Sheets) yang tak emit `filters.groups`/`group_cache`. Ganti ke `refresh-vps-local.sh` (PG). Regenerate + deploy JSON 36 groups. |
 | 2026-06-12 | Initial: sales dashboard + deploy ke Vercel |
